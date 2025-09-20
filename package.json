@@ -1,20 +1,27 @@
 {
   "name": "birbot",
   "version": "1.0.0",
-  "description": "",
+  "description": "Multi-merchant bot with manual and auto pricing modes",
   "main": "src/index.js",
+  "type": "module",
   "scripts": {
+    "start": "node src/index.js",
+    "manual": "node src/manual.js",
+    "auto": "node src/auto.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/proserver2025/birbot.git"
   },
-  "keywords": [],
-  "author": "",
+  "keywords": ["bot", "merchant", "pricing", "manual", "auto"],
+  "author": "CMSTOre",
   "license": "ISC",
   "bugs": {
     "url": "https://github.com/proserver2025/birbot/issues"
   },
-  "homepage": "https://github.com/proserver2025/birbot#readme"
+  "homepage": "https://github.com/proserver2025/birbot#readme",
+  "dependencies": {
+    "node-fetch": "^3.3.2"
+  }
 }
