@@ -3,11 +3,14 @@ import { UMIKO_TOKEN } from './config.js';
 
 export async function getProfile() {
   try {
-    const res = await fetch('https://umicobot.com/api/current-user-for-extension', {
+    const res = await fetch('https://umicobot.com/api/widget/profile', {
       method: 'GET',
       headers: {
         'Authorization': `Bearer ${UMIKO_TOKEN}`,
-        'Content-Type': 'application/json'
+        'Content-Type': 'application/json',
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)',
+        'Referer': 'https://umico.az/',
+        'Origin': 'https://umico.az'
       }
     });
 
