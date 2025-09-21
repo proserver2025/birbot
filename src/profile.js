@@ -1,11 +1,20 @@
 import fetch from 'node-fetch';
+import { UMIKO_TOKEN } from './config.js';
 
 export async function getProfile() {
   try {
-    const res = await fetch('https://umicobot.com/api/current-user-for-extension');
+    // İlk sorğu: token ilə
+    const res = await fetch('https://umicobot.com/api/current-user-for-extension', {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${UMIKO_TOKEN}`,
+        'Content-Type': 'application/json'
+      }
+    });
+
     const raw = await res.json();
 
-    // client_key mövcuddursa və stringdirsə parse et
+    // client_key yoxlanışı
     if (raw.client_key && typeof raw.client_key === 'string') {
       let parsedKey;
       try {
@@ -16,6 +25,7 @@ export async function getProfile() {
 
       const token = parsedKey.client_token;
 
+      // İkinci sorğu: çıxarılmış token ilə
       const res2 = await fetch('https://umicobot.com/api/current-user-for-extension', {
         method: 'GET',
         headers: {
