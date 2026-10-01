@@ -50,7 +50,7 @@ Qovluq: `toplu_kopyalama/`. Python 3.11+, xarici sistemlər interfeyslər arxas�
 | `models.py` | Məlumat modelləri, statuslar, filtr | ✅ test |
 | `pricing.py` | Maya + faiz hesablaması (110/40/100, dəyişdirilə bilən) | ✅ test |
 | `parsing.py` | Mətndən maya və MPN çıxarma; bir neçə qiymət olanda "şübhəli" | ✅ test |
-| `skus.py` | Google/Birmarket linklərindən SKU, təkrarların silinməsi | ✅ test, ⚠️ fərziyyə (bax 2.1) |
+| `skus.py` | Google/Birmarket linklərindən SKU, təkrarların silinməsi | ✅ test, SKU formatı təsdiqlənib |
 | `matching.py` | Eyni model yoxlaması: MPN uyğunluğu → avtomatik, başqa hallar → təsdiq/rədd | ✅ test |
 | `pipeline.py` | İşçi: pəncərə (15 gün, yenidən köhnəyə), limit (3), axtarış, bütün variantların yoxlanması, filtr → merchant, artıq olanları keçmək, kopyalama (timeout + təkrar cəhd + dublikat qoruması), maya/təchizatçı yazılması, təsdiq | ✅ test (saxta adapterlərlə) |
 | `ports.py` | İnterfeyslər: `ImageSearcher`, `CandidateInspector`, `Copier`, `Repository`, `Notifier` | — |
@@ -67,14 +67,11 @@ Testləri işlət: `python -m pytest -q tests`
 
 ## 2. Əvvəlcə yoxla (bulud sessiyası birmarket.az-a çıxa bilmədi)
 
-### 2.1 SKU = linkdəki rəqəm?
-Linklərin formatı `https://birmarket.az/product/950388-...` şəklindədir.
-- Satıcı kabinetində və ya botun Birmarket API-sində `950388` daxil et və eyni məhsulun
-  tapıldığını yoxla.
-- Eynidirsə, `skus.py` olduğu kimi qalır.
-- Fərqlidirsə, SKU səhifədən (`sku_from_page`) və ya API-dən götürülməlidir. Lazım olsa,
-  `_PAGE_SKU` regex-ini real səhifəyə görə düzəlt.
-- `umico.az` linkləri üçün də eyni yoxlamanı et. Umico SKU-su Birmarket ilə eyni deyilsə,
+### 2.1 SKU = linkdəki rəqəm — ✅ istifadəçi təsdiqlədi
+`https://birmarket.az/ru/product/2819110-agcaqanad-paneli-led#search_id=...` linkində
+SKU `2819110`-dur. Dil prefiksi (`/ru/`, `/en/`) və `#search_id` nəzərə alınır, test var.
+Yalnız bir real SKU ilə API-də sınaq et və davam et.
+- `umico.az` linkləri üçün bunu yoxla. Umico SKU-su Birmarket ilə eyni deyilsə,
   umico nəticəsini Birmarket SKU-suna çevirmə yolunu tap və ya umico linklərini yalnız
   MPN/başlıq ipucu kimi istifadə et.
 
@@ -183,7 +180,7 @@ Yeni iş formu:
 
 1. Üst limit (+100%) adi satışdan (+110%) aşağıdır: 100 AZN mayada 200 < 210. Bu düzdürmü?
    Botun mövcud yeni məhsul əlavəsində necədir? Eyni məntiqi götür.
-2. SKU-nun linkdəki rəqəmlə eyni olması (2.1) və umico linklərinin necə istifadə olunacağı.
+2. Umico linklərinin necə istifadə olunacağı.
 3. Bir mal həm aktiv, həm deaktiv SKU kimi tapılarsa (eyni model, iki SKU), hər ikisini
    müvafiq merchant-lara kopyalamaq düzdürmü? (İndiki məntiq: bəli.)
 

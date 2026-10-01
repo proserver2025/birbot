@@ -59,6 +59,9 @@ def test_extract_mpns_skips_units():
 def test_sku_from_urls():
     assert sku_from_url("https://birmarket.az/product/950388-simsiz-qulaqliqlar") == "950388"
     assert sku_from_url("https://www.google.com/url?q=https://birmarket.az/product/7792-arko-250&sa=U") == "7792"
+    # İstifadəçi təsdiqlədi: linkdəki rəqəm = SKU (dil prefiksi və #search_id ilə)
+    assert sku_from_url("https://birmarket.az/ru/product/2819110-agcaqanad-paneli-led"
+                        "#search_id=3a4a5212-85b6-46d9-925b-20a38a7d21ec") == "2819110"
     assert sku_from_url("https://birmarket.az/category/telefonlar") is None
     assert sku_from_url("https://example.com/product/123") is None
 
