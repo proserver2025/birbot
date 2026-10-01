@@ -9,9 +9,8 @@ CREATE TABLE IF NOT EXISTS bulk_copy_jobs (
     created_by      TEXT,
     source_type     TEXT NOT NULL,                 -- whatsapp | telegram | pdf | link
     source_ref      TEXT NOT NULL,                 -- qrup adı / pdf adı / link
-    stock_filter    TEXT NOT NULL,                 -- only_inactive | only_active | both
-    merchant_active   TEXT,                        -- məs. Trendify
-    merchant_inactive TEXT,                        -- məs. Maxi Shop
+    stock_filter    TEXT NOT NULL,                 -- only_inactive (rəqibsiz) | only_active (rəqibli) | both
+    merchant_id     TEXT NOT NULL,                 -- işin başladıldığı mağaza paneli (məs. Trendify)
     sale_pct        NUMERIC(6,2) NOT NULL DEFAULT 110,
     discount_pct    NUMERIC(6,2) NOT NULL DEFAULT 40,
     upper_limit_pct NUMERIC(6,2) NOT NULL DEFAULT 100,

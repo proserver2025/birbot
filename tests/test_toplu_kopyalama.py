@@ -56,6 +56,10 @@ def test_extract_mpns_skips_units():
 
 # --- SKU ------------------------------------------------------------------
 
+def test_umico_link_same_sku():
+    assert sku_from_url("https://umico.az/product/2819110-agcaqanad-paneli-led") == "2819110"
+
+
 def test_sku_from_urls():
     assert sku_from_url("https://birmarket.az/product/950388-simsiz-qulaqliqlar") == "950388"
     assert sku_from_url("https://www.google.com/url?q=https://birmarket.az/product/7792-arko-250&sa=U") == "7792"
@@ -102,12 +106,15 @@ def test_unrelated_rejected():
 
 # --- filtr və tarix -------------------------------------------------------
 
-def test_merchant_routing():
-    cfg = JobConfig(stock_filter=StockFilter.BOTH, merchant_for_active="TRENDIFY", merchant_for_inactive="MAXI")
+def test_filter_routes_to_job_merchant():
+    cfg = JobConfig(stock_filter=StockFilter.BOTH, merchant_id="TRENDIFY")
     assert merchant_for(SkuStatus.ACTIVE, cfg) == "TRENDIFY"
-    assert merchant_for(SkuStatus.INACTIVE, cfg) == "MAXI"
+    assert merchant_for(SkuStatus.INACTIVE, cfg) == "TRENDIFY"
     cfg.stock_filter = StockFilter.ONLY_INACTIVE
     assert merchant_for(SkuStatus.ACTIVE, cfg) is None
+    assert merchant_for(SkuStatus.INACTIVE, cfg) == "TRENDIFY"
+    cfg.stock_filter = StockFilter.ONLY_ACTIVE
+    assert merchant_for(SkuStatus.INACTIVE, cfg) is None
 
 
 def test_window_newest_first():
@@ -231,17 +238,18 @@ PAGES = {"11": ("Redmi Buds 6 Active BHR8396GL", SkuStatus.ACTIVE),
 
 
 def _worker(copier=None, repo=None, searchers=None, **cfg):
-    cfg = JobConfig(merchant_for_active="TRENDIFY", merchant_for_inactive="MAXI",
+    cfg = JobConfig(merchant_id="TRENDIFY",
                     keywords=("birmarket",), copy_timeout_s=0.2, **cfg)
     return BulkCopyWorker(searchers or [FakeSearcher(LINKS)], FakeInspector(PAGES),
                           copier or FakeCopier(), repo or FakeRepo(), FakeNotifier(), cfg)
 
 
-def test_pipeline_copies_all_matching_variants_to_right_merchants():
+def test_pipeline_copies_every_matching_sku_to_job_merchant():
+    # Eyni mal bir neçə SKU-da ola bilər — hamısı götürülür
     w = _worker()
     stats = asyncio.run(w.run(1, [_item("Redmi Buds", mpns=["BHR8396GL"])]))
     assert stats["copied"] == 1
-    assert sorted((m, s) for m, s, _ in w.copier.calls) == [("MAXI", "12"), ("TRENDIFY", "11")]
+    assert sorted((m, s) for m, s, _ in w.copier.calls) == [("TRENDIFY", "11"), ("TRENDIFY", "12")]
     assert all(sale == Decimal("210.00") for *_, sale in w.copier.calls)
     assert ("P-11", Decimal("100"), "PMT EVIZ") in w.repo.costs
 

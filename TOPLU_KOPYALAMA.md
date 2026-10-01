@@ -12,18 +12,20 @@ Bot bir **işçi kimi** işləməlidir:
 2. Hər malın şəklinə/modelinə görə **Google**-da axtarır. Açar söz `birmarket` və ya
    `umico` olur. Oxşar mal yox, **eyni model** axtarılır.
 3. Nəticədəki Birmarket linklərindən **SKU**-ları götürür. SKU linkdə və ya səhifədə
-   yazılır. Bir neçə variant varsa, **hamısını** yoxlayır.
+   yazılır. Bir neçə variant varsa, **hamısını** yoxlayır. Yoxlamadan sonra eyni mal
+   bir neçə SKU-da tapılarsa, filtrdən keçən **bütün SKU-lar** götürülür.
    - Birmarket axtarışında artıq görünməyən, amma Google-da görünən **deaktiv**
      (satıcısız) SKU-lar da tapılır. Bunlar xüsusilə vacibdir.
-4. Filtrə görə kopyalayır. Filtrlər:
-   - yalnız deaktiv (satıcısız) SKU-lar;
-   - yalnız aktiv (satıcılı) SKU-lar;
-   - hər ikisi.
+   - `umico.az` platformanın köhnə adıdır. Umico linkindəki rəqəm də eyni Birmarket
+     SKU-sudur, ona görə hər iki domen eyni cür emal olunur.
+4. Kopyalama **mağaza panelindən** başladılır (məs. Trendify panelində "Toplu
+   kopyalama"). Bütün SKU-lar **həmin bir mağazaya** kopyalanır. İşə başlayanda
+   istifadəçi filtri seçir:
+   - **rəqibsiz**: yalnız deaktiv (satıcısız) SKU-lar;
+   - **rəqibli**: yalnız aktiv (satıcılı) SKU-lar;
+   - **hər ikisi**.
 
-   Mağaza bölgüsü:
-   - Aktiv SKU-lar bir merchant-a gedir (məs. **Trendify**).
-   - Deaktiv SKU-lar başqa merchant-a gedir (məs. **Maxi Shop**).
-   - Hansı merchant-ın hansı statusa aid olduğu hər işdə paneldə seçilir.
+   Hansı mağazada hansı filtrdən istifadə olunacağı istifadəçinin öz seçimidir.
 5. SKU-nu botun **mövcud Birmarket API inteqrasiyası** ilə kopyalayır. Yeni məhsul yaratmır.
 6. Mal DB-yə düşəndən sonra ona **maya**nı (WhatsApp/PDF/link qiyməti) və
    **təchizatçı**nı yazır. Təchizatçı = qrup adı olduğu kimi, məs. `PMT EVIZ`.
@@ -32,6 +34,10 @@ Bot bir **işçi kimi** işləməlidir:
    - adi satış = maya + **110%**
    - endirim = maya + **40%**
    - üst limit = maya + **100%**
+
+   Üst limitin adi satışdan aşağı olması **qəsdəndir**: qiymət qalxsa belə, adi
+   qiymət həmişə yüksək qalır və endirim görünür. Məs. maya 100 → adi 210,
+   endirim 140, üst limit 200. Bu məntiqi dəyişmə.
 8. Bot əmin deyilsə (model və ya maya şübhəlidir), malı **"Təsdiq gözləyir"**
    siyahısına salır. İstifadəçi baxıb təsdiqləyir və ya rədd edir.
 9. Mənbədə **son 15 gün** götürülür. İş ən son tarixdən başlayıb geriyə doğru gedir.
@@ -52,7 +58,7 @@ Qovluq: `toplu_kopyalama/`. Python 3.11+, xarici sistemlər interfeyslər arxas�
 | `parsing.py` | Mətndən maya və MPN çıxarma; bir neçə qiymət olanda "şübhəli" | ✅ test |
 | `skus.py` | Google/Birmarket linklərindən SKU, təkrarların silinməsi | ✅ test, SKU formatı təsdiqlənib |
 | `matching.py` | Eyni model yoxlaması: MPN uyğunluğu → avtomatik, başqa hallar → təsdiq/rədd | ✅ test |
-| `pipeline.py` | İşçi: pəncərə (15 gün, yenidən köhnəyə), limit (3), axtarış, bütün variantların yoxlanması, filtr → merchant, artıq olanları keçmək, kopyalama (timeout + təkrar cəhd + dublikat qoruması), maya/təchizatçı yazılması, təsdiq | ✅ test (saxta adapterlərlə) |
+| `pipeline.py` | İşçi: pəncərə (15 gün, yenidən köhnəyə), limit (3), axtarış, bütün variantların yoxlanması, filtr (rəqibsiz/rəqibli/hər ikisi) → işin mağazası, eyni malın bütün SKU-ları, artıq olanları keçmək, kopyalama (timeout + təkrar cəhd + dublikat qoruması), maya/təchizatçı yazılması, təsdiq | ✅ test (saxta adapterlərlə) |
 | `ports.py` | İnterfeyslər: `ImageSearcher`, `CandidateInspector`, `Copier`, `Repository`, `Notifier` | — |
 | `search/base.py` | Tempo limiti, CAPTCHA aşkarlanması, insanı gözləmə, daimi brauzer profili | ✅ test (aşkarlanma) |
 | `search/google.py` | Google: MPN varsa mətn axtarışı, yoxdursa Google Lens + açar söz | ⚠️ selektorlar VPS-də yoxlanmalıdır |
@@ -71,9 +77,7 @@ Testləri işlət: `python -m pytest -q tests`
 `https://birmarket.az/ru/product/2819110-agcaqanad-paneli-led#search_id=...` linkində
 SKU `2819110`-dur. Dil prefiksi (`/ru/`, `/en/`) və `#search_id` nəzərə alınır, test var.
 Yalnız bir real SKU ilə API-də sınaq et və davam et.
-- `umico.az` linkləri üçün bunu yoxla. Umico SKU-su Birmarket ilə eyni deyilsə,
-  umico nəticəsini Birmarket SKU-suna çevirmə yolunu tap və ya umico linklərini yalnız
-  MPN/başlıq ipucu kimi istifadə et.
+- `umico.az` = platformanın köhnə adı, linkdəki rəqəm eyni SKU-dur ✅ (test var).
 
 ### 2.2 Aktiv / deaktiv necə bilinir?
 - **Üstün yol:** botun Birmarket API-si SKU üzrə satıcı/təklif sayını qaytarırsa,
@@ -136,12 +140,14 @@ Botun kodunda bunları tap və istifadəçiyə qısa xəritə ver (fayl:sətir):
 
 ## 6. Panel: "Toplu kopyalama" bölməsi
 
+Bölmə **hər mağazanın öz panelində** olur (məs. Trendify → Toplu kopyalama).
+Bütün SKU-lar həmin mağazaya kopyalanır.
+
 Yeni iş formu:
 - mənbə: WhatsApp / Telegram / PDF / link;
 - qrupların seçilməsi (istifadəçi hansı qrupları seçirsə, yalnız onlar);
 - gün sayı (standart 15);
-- filtr: yalnız deaktiv / yalnız aktiv / hər ikisi;
-- aktiv SKU-lar üçün merchant və deaktiv SKU-lar üçün merchant;
+- filtr: rəqibsiz (deaktiv) / rəqibli (aktiv) / hər ikisi;
 - faizlər (110 / 40 / 100 standart olaraq doldurulub);
 - mal limiti (ilk dəfə 3).
 
@@ -164,7 +170,7 @@ Yeni iş formu:
    - tapılan linklər və SKU-lar;
    - aktiv/deaktiv;
    - qərar və səbəb;
-   - hansı merchant-a kopyalandı;
+   - hansı SKU-lar mağazaya kopyalandı;
    - maya və təchizatçı DB-yə yazılıbmı (SQL ilə yoxla).
 4. **İstifadəçi təsdiq etmədən 3-dən çox mal emal etmə.**
 5. Köhnə toplu yükləmə və SKU kopyalama funksiyaları işləyir (reqressiya yoxdur).
@@ -176,13 +182,14 @@ Yeni iş formu:
 - DB miqrasiyasından əvvəl backup al.
 - Hər mərhələdən sonra qısa hesabat ver. Uyğunsuzluq olanda təxmin etmə, soruş.
 
-## 9. Açıq suallar (istifadəçidən soruş)
+## 9. İstifadəçinin təsdiqlədiyi qərarlar
 
-1. Üst limit (+100%) adi satışdan (+110%) aşağıdır: 100 AZN mayada 200 < 210. Bu düzdürmü?
-   Botun mövcud yeni məhsul əlavəsində necədir? Eyni məntiqi götür.
-2. Umico linklərinin necə istifadə olunacağı.
-3. Bir mal həm aktiv, həm deaktiv SKU kimi tapılarsa (eyni model, iki SKU), hər ikisini
-   müvafiq merchant-lara kopyalamaq düzdürmü? (İndiki məntiq: bəli.)
+1. SKU = Birmarket linkindəki rəqəm (`/ru/product/2819110-...` → `2819110`).
+2. `umico.az` köhnə addır, eyni SKU-dur.
+3. Üst limit (+100%) adi satışdan (+110%) aşağıdır və bu qəsdəndir (endirim həmişə görünsün).
+4. Eyni mal bir neçə SKU-da tapılarsa, filtrdən keçən hamısı götürülür.
+5. Kopyalama bir mağazanın panelindən başladılır, bütün SKU-lar o mağazaya gedir.
+   Filtr (rəqibsiz/rəqibli/hər ikisi) hər işdə istifadəçi tərəfindən seçilir.
 
 ## 10. Tövsiyələr (arxitektor qeydi)
 

@@ -12,6 +12,7 @@ from urllib.parse import parse_qs, unquote, urlparse
 from .models import Candidate
 
 BIRMARKET_HOSTS = {"birmarket.az", "www.birmarket.az"}
+# Umico platformanın köhnə adıdır; linklərdəki rəqəm eyni Birmarket SKU-sudur
 UMICO_HOSTS = {"umico.az", "www.umico.az"}
 
 _PRODUCT_PATH = re.compile(r"^/(?:[a-z]{2}/)?product/(\d+)(?:-[^/]*)?/?$")

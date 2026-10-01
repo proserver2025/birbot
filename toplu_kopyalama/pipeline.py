@@ -24,8 +24,7 @@ log = logging.getLogger(__name__)
 @dataclass
 class JobConfig:
     stock_filter: StockFilter = StockFilter.BOTH
-    merchant_for_active: str | None = None     # məs. Trendify merchant id
-    merchant_for_inactive: str | None = None   # məs. Maxi Shop merchant id
+    merchant_id: str | None = None             # işin aid olduğu mağaza (məs. Trendify), paneldən
     price_rule: pricing.PriceRule = field(default_factory=pricing.PriceRule)
     thresholds: MatchThresholds = field(default_factory=MatchThresholds)
     keywords: tuple[str, ...] = ("birmarket", "umico")
@@ -36,11 +35,14 @@ class JobConfig:
 
 
 def merchant_for(status: SkuStatus, cfg: JobConfig) -> str | None:
-    """Filtrə görə SKU-nun hansı mağazaya gedəcəyi (None = filtrdən keçmir)."""
+    """SKU filtrdən keçirsə işin mağazasını qaytarır, keçmirsə None.
+
+    Filtr: rəqibsiz (deaktiv) / rəqibli (aktiv) / hər ikisi — hamısı eyni mağazaya.
+    """
     if status == SkuStatus.ACTIVE and cfg.stock_filter in (StockFilter.ONLY_ACTIVE, StockFilter.BOTH):
-        return cfg.merchant_for_active
+        return cfg.merchant_id
     if status == SkuStatus.INACTIVE and cfg.stock_filter in (StockFilter.ONLY_INACTIVE, StockFilter.BOTH):
-        return cfg.merchant_for_inactive
+        return cfg.merchant_id
     return None
 
 

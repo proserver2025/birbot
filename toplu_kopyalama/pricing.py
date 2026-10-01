@@ -4,6 +4,10 @@ Standart (paneldə hər toplu iş üçün dəyişdirilə bilər):
   adi satış  = maya + 110%
   endirim    = maya + 40%
   üst limit  = maya + 100%
+
+Üst limitin adi satışdan aşağı olması qəsdəndir (istifadəçi təsdiqlədi):
+qiymət qalxsa belə satış qiyməti həmişə yüksək qalır və endirim görünür.
+Məs. maya 100: adi 210, endirim 140, üst limit 200.
 """
 from __future__ import annotations
 
