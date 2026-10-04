@@ -329,6 +329,46 @@ router.get('/hesabim', requireCustomer, (req, res) => {
   res.render('account', { orders, bonusSummary, title: 'Hesabım' });
 });
 
+// --- Sifariş detalı: çatdırılma izləməsi + mağaza ilə çat (konum paylaşımı) ---
+function findOwnOrder(req) {
+  return db.prepare('SELECT * FROM orders WHERE id = ? AND customer_id = ?').get(req.params.id, req.session.customerId);
+}
+
+router.get('/hesabim/sifaris/:id', requireCustomer, (req, res) => {
+  const order = findOwnOrder(req);
+  if (!order) return res.redirect('/hesabim');
+  const items = db.prepare('SELECT * FROM order_items WHERE order_id = ?').all(order.id);
+  const trackingEvents = db.prepare('SELECT * FROM order_tracking_events WHERE order_id = ? ORDER BY id ASC').all(order.id);
+  const messages = db.prepare('SELECT * FROM order_messages WHERE order_id = ? ORDER BY id ASC').all(order.id);
+  db.prepare("UPDATE order_messages SET is_read_by_customer = 1 WHERE order_id = ? AND sender_type = 'admin'").run(order.id);
+  res.render('order-detail', { title: `Sifariş #${order.id}`, order, items, trackingEvents, messages });
+});
+
+router.get('/hesabim/sifaris/:id/mesajlar', requireCustomer, (req, res) => {
+  const order = findOwnOrder(req);
+  if (!order) return res.status(404).json({ error: 'not_found' });
+  db.prepare("UPDATE order_messages SET is_read_by_customer = 1 WHERE order_id = ? AND sender_type = 'admin'").run(order.id);
+  const afterId = parseInt(req.query.after || '0', 10) || 0;
+  const messages = db
+    .prepare('SELECT * FROM order_messages WHERE order_id = ? AND id > ? ORDER BY id ASC')
+    .all(order.id, afterId);
+  res.json({ messages });
+});
+
+router.post('/hesabim/sifaris/:id/mesaj', requireCustomer, (req, res) => {
+  const order = findOwnOrder(req);
+  if (!order) return res.status(404).json({ error: 'not_found' });
+  const message = (req.body.message || '').toString().trim().slice(0, 2000);
+  const lat = req.body.lat !== undefined && req.body.lat !== null ? parseFloat(req.body.lat) : null;
+  const lng = req.body.lng !== undefined && req.body.lng !== null ? parseFloat(req.body.lng) : null;
+  if (!message && (lat === null || isNaN(lat) || lng === null || isNaN(lng))) return res.status(400).json({ error: 'empty' });
+  const result = db
+    .prepare('INSERT INTO order_messages (order_id, sender_type, message, lat, lng, is_read_by_admin) VALUES (?, ?, ?, ?, ?, 0)')
+    .run(order.id, 'customer', message || null, isNaN(lat) ? null : lat, isNaN(lng) ? null : lng);
+  const saved = db.prepare('SELECT * FROM order_messages WHERE id = ?').get(result.lastInsertRowid);
+  res.json({ message: saved });
+});
+
 // --- Tərəfdaşlıq (həvalə / referral) proqramı ---
 router.get('/tereflik', requireCustomer, (req, res) => {
   affiliates.ensureReferralCode(req.session.customerId);

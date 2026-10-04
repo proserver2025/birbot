@@ -1,0 +1,137 @@
+<div class="section">
+  <div class="section-title" style="display:flex;justify-content:space-between;align-items:center;">
+    <h2>Sifariş #<%= order.id %></h2>
+    <a href="/hesabim" style="font-size:13.5px;color:var(--muted);">← Hesabıma qayıt</a>
+  </div>
+
+  <div class="admin-card" style="max-width:640px;">
+    <p><strong>Tarix:</strong> <%= order.created_at %></p>
+    <p><strong>Ünvan:</strong> <%= order.customer_address || '—' %></p>
+    <p><strong>Ümumi məbləğ:</strong> <%= order.total.toFixed(2) %> ₼</p>
+    <p><strong>Status:</strong> <span class="status-tag status-<%= order.status %>"><%= order.status %></span></p>
+  </div>
+
+  <div class="admin-card" style="max-width:640px;">
+    <h3>Çatdırılma izləməsi</h3>
+    <% if (!trackingEvents.length) { %>
+      <p style="color:var(--muted);font-size:13.5px;">Sifarişiniz hazırlanır, tezliklə burada izləmə məlumatı görünəcək.</p>
+    <% } else { %>
+      <ul class="tracking-timeline">
+        <% trackingEvents.slice().reverse().forEach(function(ev) { %>
+          <li>
+            <span class="t-status"><%= ev.status %></span>
+            <% if (ev.note) { %><span class="t-note"><%= ev.note %></span><% } %>
+            <span class="t-time"><%= ev.created_at %></span>
+          </li>
+        <% }) %>
+      </ul>
+    <% } %>
+  </div>
+
+  <div class="admin-card" style="max-width:640px;">
+    <h3>Mağaza ilə çat</h3>
+    <p style="color:var(--muted);font-size:13px;margin-top:-8px;">Kuryerə ünvanı dəqiqləşdirmək üçün buradan konumunuzu paylaşa bilərsiniz.</p>
+
+    <div id="chatBox" class="chat-box">
+      <% if (!messages.length) { %>
+        <div class="chat-empty" id="chatEmpty">Hələ mesaj yoxdur. Sual varsa, bura yazın.</div>
+      <% } %>
+      <% messages.forEach(function(m) { %>
+        <%- include('partials/chat-bubble', { m: m }) %>
+      <% }) %>
+    </div>
+
+    <form id="chatForm" class="chat-input-row">
+      <button type="button" class="chat-location-btn" id="sendLocationBtn" title="Konumu göndər">📍</button>
+      <textarea id="chatInput" placeholder="Mesajınızı yazın..." rows="1"></textarea>
+      <button type="submit" class="btn btn-sm">Göndər</button>
+    </form>
+    <p id="locationStatus" style="font-size:12px;color:var(--muted);margin-top:6px;"></p>
+  </div>
+</div>
+
+<script>
+(function () {
+  const orderId = <%= order.id %>;
+  const csrfToken = '<%= csrfToken %>';
+  const chatBox = document.getElementById('chatBox');
+  const chatForm = document.getElementById('chatForm');
+  const chatInput = document.getElementById('chatInput');
+  const locationStatus = document.getElementById('locationStatus');
+  let lastId = <%= messages.length ? messages[messages.length - 1].id : 0 %>;
+
+  function escapeHtml(s) {
+    return (s || '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  }
+
+  function renderBubble(m) {
+    const cls = m.sender_type === 'customer' ? 'customer' : 'admin';
+    let body = '';
+    if (m.lat !== null && m.lng !== null) {
+      body += '<div class="location-pin">📍 Konum paylaşıldı <a class="location-link" target="_blank" rel="noopener" href="https://www.google.com/maps?q=' + m.lat + ',' + m.lng + '">xəritədə bax</a></div>';
+    }
+    if (m.message) body += '<div>' + escapeHtml(m.message) + '</div>';
+    const div = document.createElement('div');
+    div.className = 'chat-bubble ' + cls;
+    div.innerHTML = body + '<span class="meta">' + m.created_at + '</span>';
+    return div;
+  }
+
+  function appendMessage(m) {
+    const empty = document.getElementById('chatEmpty');
+    if (empty) empty.remove();
+    chatBox.appendChild(renderBubble(m));
+    chatBox.scrollTop = chatBox.scrollHeight;
+    lastId = Math.max(lastId, m.id);
+  }
+
+  async function sendPayload(payload) {
+    const res = await fetch('/hesabim/sifaris/' + orderId + '/mesaj', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrfToken },
+      body: JSON.stringify(payload),
+    });
+    if (res.ok) {
+      const data = await res.json();
+      appendMessage(data.message);
+    }
+  }
+
+  chatForm.addEventListener('submit', function (e) {
+    e.preventDefault();
+    const text = chatInput.value.trim();
+    if (!text) return;
+    chatInput.value = '';
+    sendPayload({ message: text });
+  });
+
+  document.getElementById('sendLocationBtn').addEventListener('click', function () {
+    if (!navigator.geolocation) {
+      locationStatus.textContent = 'Bu cihazda konum paylaşımı mümkün deyil.';
+      return;
+    }
+    locationStatus.textContent = 'Konum alınır...';
+    navigator.geolocation.getCurrentPosition(
+      function (pos) {
+        locationStatus.textContent = '';
+        sendPayload({ lat: pos.coords.latitude, lng: pos.coords.longitude });
+      },
+      function () {
+        locationStatus.textContent = 'Konuma icazə verilmədi.';
+      }
+    );
+  });
+
+  async function poll() {
+    try {
+      const res = await fetch('/hesabim/sifaris/' + orderId + '/mesajlar?after=' + lastId);
+      if (res.ok) {
+        const data = await res.json();
+        data.messages.forEach(appendMessage);
+      }
+    } catch (e) { /* səssiz — bir az sonra yenidən sınayacaq */ }
+  }
+  setInterval(poll, 4000);
+  chatBox.scrollTop = chatBox.scrollHeight;
+}());
+</script>

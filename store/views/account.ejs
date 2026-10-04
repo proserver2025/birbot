@@ -19,7 +19,7 @@
       <tbody>
         <% orders.forEach(function(o) { %>
           <tr>
-            <td>#<%= o.id %></td>
+            <td><a href="/hesabim/sifaris/<%= o.id %>">#<%= o.id %></a></td>
             <td><%= o.created_at %></td>
             <td><%= o.total.toFixed(2) %> ₼</td>
             <td><%= o.bonus_earned > 0 ? ('+' + o.bonus_earned.toFixed(2) + ' ₼ (' + o.bonus_status + ')') : '—' %></td>

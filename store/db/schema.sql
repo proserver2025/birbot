@@ -143,5 +143,43 @@ CREATE TABLE IF NOT EXISTS order_items (
   FOREIGN KEY (product_id) REFERENCES products(id)
 );
 
+-- Couriers (kuryerlər) an admin assigns to an order for delivery.
+CREATE TABLE IF NOT EXISTS couriers (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  full_name TEXT NOT NULL,
+  phone TEXT,
+  is_active INTEGER DEFAULT 1,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Delivery timeline per order (hazırlanır → kuryerə verildi → yolda →
+-- çatdırıldı), logged by admin so the customer can see where their order is.
+CREATE TABLE IF NOT EXISTS order_tracking_events (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  order_id INTEGER NOT NULL,
+  status TEXT NOT NULL,
+  note TEXT,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (order_id) REFERENCES orders(id)
+);
+
+-- WhatsApp-style per-order chat between customer and the store, so a
+-- customer can share a GPS pin that the admin then passes on to the
+-- courier, instead of having to call or guess an address.
+CREATE TABLE IF NOT EXISTS order_messages (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  order_id INTEGER NOT NULL,
+  sender_type TEXT NOT NULL, -- 'customer' | 'admin'
+  message TEXT,
+  lat REAL,
+  lng REAL,
+  is_read_by_admin INTEGER DEFAULT 0,
+  is_read_by_customer INTEGER DEFAULT 0,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (order_id) REFERENCES orders(id)
+);
+
 CREATE INDEX IF NOT EXISTS idx_products_category ON products(category_id);
 CREATE INDEX IF NOT EXISTS idx_order_items_order ON order_items(order_id);
+CREATE INDEX IF NOT EXISTS idx_order_messages_order ON order_messages(order_id);
+CREATE INDEX IF NOT EXISTS idx_order_tracking_order ON order_tracking_events(order_id);

@@ -17,6 +17,122 @@
     <button class="btn btn-sm" type="submit">Yenilə</button>
   </form>
 </div>
+
+<div class="admin-card" style="max-width:640px;">
+  <h3>Kuryer</h3>
+  <form action="/admin/sifarisler/<%= order.id %>/kuryer" method="post" style="display:flex;gap:10px;align-items:center;">
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+    <select name="courier_id" style="flex:1;">
+      <option value="">— kuryer təyin olunmayıb —</option>
+      <% couriers.forEach(function(c) { %>
+        <option value="<%= c.id %>" <%= order.courier_id === c.id ? 'selected' : '' %>><%= c.full_name %><%= c.phone ? (' — ' + c.phone) : '' %></option>
+      <% }) %>
+    </select>
+    <button class="btn btn-sm" type="submit">Təyin et</button>
+  </form>
+
+  <h3 style="margin-top:22px;">Çatdırılma izləməsi</h3>
+  <form action="/admin/sifarisler/<%= order.id %>/izleme" method="post" style="display:flex;gap:10px;align-items:center;margin-bottom:14px;">
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+    <select name="status" style="flex:1;">
+      <option value="hazırlanır">hazırlanır</option>
+      <option value="kuryerə verildi">kuryerə verildi</option>
+      <option value="yoldadır">yoldadır</option>
+      <option value="çatdırıldı">çatdırıldı</option>
+    </select>
+    <input type="text" name="note" placeholder="Qeyd (isteğe bağlı)" style="flex:1;">
+    <button class="btn btn-sm" type="submit">Əlavə et</button>
+  </form>
+  <% if (!trackingEvents.length) { %>
+    <p style="color:var(--muted);font-size:13.5px;">Hələ izləmə qeydi yoxdur.</p>
+  <% } else { %>
+    <ul class="tracking-timeline">
+      <% trackingEvents.forEach(function(ev) { %>
+        <li>
+          <span class="t-status"><%= ev.status %></span>
+          <% if (ev.note) { %><span class="t-note"><%= ev.note %></span><% } %>
+          <span class="t-time"><%= ev.created_at %></span>
+        </li>
+      <% }) %>
+    </ul>
+  <% } %>
+</div>
+
+<div class="admin-card" style="max-width:640px;">
+  <h3>Müştəri ilə çat</h3>
+  <div id="chatBox" class="chat-box">
+    <% if (!messages.length) { %>
+      <div class="chat-empty" id="chatEmpty">Hələ mesaj yoxdur.</div>
+    <% } %>
+    <% messages.forEach(function(m) { %>
+      <%- include('../partials/chat-bubble', { m: m }) %>
+    <% }) %>
+  </div>
+  <form id="chatForm" class="chat-input-row">
+    <textarea id="chatInput" placeholder="Müştəriyə cavab yazın..." rows="1"></textarea>
+    <button type="submit" class="btn btn-sm">Göndər</button>
+  </form>
+</div>
+
+<script>
+(function () {
+  const orderId = <%= order.id %>;
+  const csrfToken = '<%= csrfToken %>';
+  const chatBox = document.getElementById('chatBox');
+  const chatForm = document.getElementById('chatForm');
+  const chatInput = document.getElementById('chatInput');
+  let lastId = <%= messages.length ? messages[messages.length - 1].id : 0 %>;
+
+  function escapeHtml(s) {
+    return (s || '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  }
+  function renderBubble(m) {
+    const cls = m.sender_type === 'customer' ? 'customer' : 'admin';
+    let body = '';
+    if (m.lat !== null && m.lng !== null) {
+      body += '<div class="location-pin">📍 Konum paylaşıldı <a class="location-link" target="_blank" rel="noopener" href="https://www.google.com/maps?q=' + m.lat + ',' + m.lng + '">xəritədə bax</a></div>';
+    }
+    if (m.message) body += '<div>' + escapeHtml(m.message) + '</div>';
+    const div = document.createElement('div');
+    div.className = 'chat-bubble ' + cls;
+    div.innerHTML = body + '<span class="meta">' + m.created_at + '</span>';
+    return div;
+  }
+  function appendMessage(m) {
+    const empty = document.getElementById('chatEmpty');
+    if (empty) empty.remove();
+    chatBox.appendChild(renderBubble(m));
+    chatBox.scrollTop = chatBox.scrollHeight;
+    lastId = Math.max(lastId, m.id);
+  }
+  chatForm.addEventListener('submit', async function (e) {
+    e.preventDefault();
+    const text = chatInput.value.trim();
+    if (!text) return;
+    chatInput.value = '';
+    const res = await fetch('/admin/sifarisler/' + orderId + '/mesaj', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrfToken },
+      body: JSON.stringify({ message: text }),
+    });
+    if (res.ok) {
+      const data = await res.json();
+      appendMessage(data.message);
+    }
+  });
+  async function poll() {
+    try {
+      const res = await fetch('/admin/sifarisler/' + orderId + '/mesajlar?after=' + lastId);
+      if (res.ok) {
+        const data = await res.json();
+        data.messages.forEach(appendMessage);
+      }
+    } catch (e) { /* səssiz */ }
+  }
+  setInterval(poll, 4000);
+  chatBox.scrollTop = chatBox.scrollHeight;
+}());
+</script>
 <div class="admin-card">
   <h3>Məhsullar</h3>
   <table class="data-table">

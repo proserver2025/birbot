@@ -349,19 +349,128 @@ router.get('/sifarisler', (req, res) => {
 router.get('/sifarisler/:id', (req, res) => {
   const order = db
     .prepare(
-      `SELECT o.*, z.name AS zone_name FROM orders o
+      `SELECT o.*, z.name AS zone_name, c.full_name AS courier_name FROM orders o
        LEFT JOIN shipping_zones z ON z.id = o.shipping_zone_id
+       LEFT JOIN couriers c ON c.id = o.courier_id
        WHERE o.id = ?`
     )
     .get(req.params.id);
   if (!order) return res.redirect('/admin/sifarisler');
   const items = db.prepare('SELECT * FROM order_items WHERE order_id = ?').all(order.id);
-  res.render('admin/order-detail', { title: `Sifariş #${order.id}`, order, items, layout: 'admin/layout' });
+  const couriers = db.prepare('SELECT * FROM couriers WHERE is_active = 1 ORDER BY full_name').all();
+  const trackingEvents = db.prepare('SELECT * FROM order_tracking_events WHERE order_id = ? ORDER BY id DESC').all(order.id);
+  const messages = db.prepare('SELECT * FROM order_messages WHERE order_id = ? ORDER BY id ASC').all(order.id);
+  db.prepare("UPDATE order_messages SET is_read_by_admin = 1 WHERE order_id = ? AND sender_type = 'customer'").run(order.id);
+  res.render('admin/order-detail', {
+    title: `Sifariş #${order.id}`,
+    order,
+    items,
+    couriers,
+    trackingEvents,
+    messages,
+    layout: 'admin/layout',
+  });
 });
 
 router.post('/sifarisler/:id/status', (req, res) => {
   db.prepare('UPDATE orders SET status = ? WHERE id = ?').run(req.body.status, req.params.id);
   res.redirect('/admin/sifarisler/' + req.params.id);
+});
+
+router.post('/sifarisler/:id/kuryer', (req, res) => {
+  const courierId = req.body.courier_id ? parseInt(req.body.courier_id, 10) : null;
+  db.prepare('UPDATE orders SET courier_id = ? WHERE id = ?').run(courierId, req.params.id);
+  res.redirect('/admin/sifarisler/' + req.params.id);
+});
+
+router.post('/sifarisler/:id/izleme', (req, res) => {
+  const { status, note } = req.body;
+  if (status) {
+    db.prepare('INSERT INTO order_tracking_events (order_id, status, note) VALUES (?, ?, ?)').run(req.params.id, status, note || null);
+  }
+  res.redirect('/admin/sifarisler/' + req.params.id);
+});
+
+// --- Sifariş çatı (müştəri ⇄ mağaza, "hevale et" — konum paylaşımı daxil) ---
+router.get('/sifarisler/:id/mesajlar', (req, res) => {
+  const order = db.prepare('SELECT id FROM orders WHERE id = ?').get(req.params.id);
+  if (!order) return res.status(404).json({ error: 'not_found' });
+  db.prepare('UPDATE order_messages SET is_read_by_admin = 1 WHERE order_id = ? AND sender_type = ?').run(order.id, 'customer');
+  const afterId = parseInt(req.query.after || '0', 10) || 0;
+  const messages = db
+    .prepare('SELECT * FROM order_messages WHERE order_id = ? AND id > ? ORDER BY id ASC')
+    .all(order.id, afterId);
+  res.json({ messages });
+});
+
+router.post('/sifarisler/:id/mesaj', (req, res) => {
+  const order = db.prepare('SELECT id FROM orders WHERE id = ?').get(req.params.id);
+  if (!order) return res.status(404).json({ error: 'not_found' });
+  const message = (req.body.message || '').toString().trim().slice(0, 2000);
+  const lat = req.body.lat !== undefined && req.body.lat !== null ? parseFloat(req.body.lat) : null;
+  const lng = req.body.lng !== undefined && req.body.lng !== null ? parseFloat(req.body.lng) : null;
+  if (!message && (lat === null || lng === null)) return res.status(400).json({ error: 'empty' });
+  const result = db
+    .prepare('INSERT INTO order_messages (order_id, sender_type, message, lat, lng, is_read_by_customer) VALUES (?, ?, ?, ?, ?, 0)')
+    .run(order.id, 'admin', message || null, isNaN(lat) ? null : lat, isNaN(lng) ? null : lng);
+  const saved = db.prepare('SELECT * FROM order_messages WHERE id = ?').get(result.lastInsertRowid);
+  res.json({ message: saved });
+});
+
+// --- Kuryerlər ---
+router.get('/kuryerler', (req, res) => {
+  const couriers = db
+    .prepare(
+      `SELECT c.*, COUNT(o.id) AS active_order_count FROM couriers c
+       LEFT JOIN orders o ON o.courier_id = c.id AND o.status NOT IN ('tamamlandi', 'legv_edildi')
+       GROUP BY c.id ORDER BY c.full_name`
+    )
+    .all();
+  res.render('admin/couriers', { title: 'Kuryerlər', couriers, layout: 'admin/layout' });
+});
+
+router.post('/kuryerler/yeni', (req, res) => {
+  const { full_name, phone } = req.body;
+  if (full_name && full_name.trim()) {
+    db.prepare('INSERT INTO couriers (full_name, phone) VALUES (?, ?)').run(full_name.trim(), phone || null);
+  }
+  res.redirect('/admin/kuryerler');
+});
+
+router.post('/kuryerler/:id/redakte', (req, res) => {
+  const { full_name, phone, is_active } = req.body;
+  db.prepare('UPDATE couriers SET full_name = ?, phone = ?, is_active = ? WHERE id = ?').run(
+    full_name.trim(),
+    phone || null,
+    is_active ? 1 : 0,
+    req.params.id
+  );
+  res.redirect('/admin/kuryerler');
+});
+
+router.post('/kuryerler/:id/sil', (req, res) => {
+  const inUse = db.prepare("SELECT COUNT(*) c FROM orders WHERE courier_id = ?").get(req.params.id).c;
+  if (inUse > 0) return res.redirect('/admin/kuryerler'); // refuse — sifarişlər hələ ona bağlıdır
+  db.prepare('DELETE FROM couriers WHERE id = ?').run(req.params.id);
+  res.redirect('/admin/kuryerler');
+});
+
+// --- Kuryer izləmə paneli — bütün aktiv sifarişlər, kuryer və son status ---
+router.get('/kuryer-izleme', (req, res) => {
+  const orders = db
+    .prepare(
+      `SELECT o.*, c.full_name AS courier_name, c.phone AS courier_phone,
+         (SELECT status FROM order_tracking_events WHERE order_id = o.id ORDER BY id DESC LIMIT 1) AS last_tracking_status,
+         (SELECT created_at FROM order_tracking_events WHERE order_id = o.id ORDER BY id DESC LIMIT 1) AS last_tracking_at,
+         (SELECT COUNT(*) FROM order_messages WHERE order_id = o.id AND sender_type = 'customer' AND is_read_by_admin = 0) AS unread_count
+       FROM orders o
+       LEFT JOIN couriers c ON c.id = o.courier_id
+       WHERE o.status NOT IN ('legv_edildi')
+       ORDER BY (o.status = 'tamamlandi') ASC, o.created_at DESC`
+    )
+    .all();
+  const couriers = db.prepare('SELECT * FROM couriers WHERE is_active = 1 ORDER BY full_name').all();
+  res.render('admin/courier-tracking', { title: 'Kuryer izləmə', orders, couriers, layout: 'admin/layout' });
 });
 
 // --- Customers (sifariş verənlər — full 360° profile) ---

@@ -39,6 +39,7 @@ const migrations = [
   "ALTER TABLE products ADD COLUMN supplier_id INTEGER",
   "ALTER TABLE customers ADD COLUMN is_blocked INTEGER DEFAULT 0",
   "ALTER TABLE customers ADD COLUMN admin_notes TEXT",
+  "ALTER TABLE orders ADD COLUMN courier_id INTEGER",
 ];
 for (const sql of migrations) {
   try { db.exec(sql); } catch (e) { /* column already exists */ }
