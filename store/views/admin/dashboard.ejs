@@ -3,18 +3,25 @@
   <div class="stat-card"><div class="num"><%= stats.products %></div><div class="label">Məhsul</div></div>
   <div class="stat-card"><div class="num"><%= stats.orders %></div><div class="label">Sifariş</div></div>
   <div class="stat-card"><div class="num"><%= stats.customers %></div><div class="label">Müştəri</div></div>
-  <div class="stat-card"><div class="num"><%= stats.revenue.toFixed(2) %> ₼</div><div class="label">Ümumi satış</div></div>
+  <div class="stat-card"><div class="num"><%= stats.revenue.toFixed(2) %> ₼</div><div class="label">Satış (vergiyə tabe, yol/zəmanət xaric)</div></div>
+</div>
+<div class="stat-cards">
+  <div class="stat-card"><div class="num"><%= stats.shippingCollected.toFixed(2) %> ₼</div><div class="label">Toplanmış yol xərci (müştəri məsuliyyəti)</div></div>
+  <div class="stat-card"><div class="num"><%= stats.warrantyCollected.toFixed(2) %> ₼</div><div class="label">Toplanmış zəmanət haqqı</div></div>
+  <div class="stat-card"><div class="num"><%= stats.pendingPayouts %></div><div class="label">Gözləyən çıxarış sorğusu <% if (stats.pendingPayouts > 0) { %><a href="/admin/tereflik" style="font-size:12px;">→ bax</a><% } %></div></div>
 </div>
 
 <div class="admin-card">
   <h3>Son sifarişlər</h3>
   <table class="data-table">
-    <thead><tr><th>№</th><th>Müştəri</th><th>Məbləğ</th><th>Status</th><th>Tarix</th></tr></thead>
+    <thead><tr><th>№</th><th>Müştəri</th><th>Məhsul</th><th>Yol</th><th>Ümumi</th><th>Status</th><th>Tarix</th></tr></thead>
     <tbody>
       <% recentOrders.forEach(function(o) { %>
         <tr>
           <td><a href="/admin/sifarisler/<%= o.id %>">#<%= o.id %></a></td>
           <td><%= o.customer_name %></td>
+          <td><%= o.subtotal.toFixed(2) %> ₼</td>
+          <td><%= o.shipping_fee.toFixed(2) %> ₼</td>
           <td><%= o.total.toFixed(2) %> ₼</td>
           <td><span class="status-tag status-<%= o.status %>"><%= o.status %></span></td>
           <td><%= o.created_at %></td>

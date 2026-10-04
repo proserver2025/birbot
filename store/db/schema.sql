@@ -18,6 +18,8 @@ CREATE TABLE IF NOT EXISTS customers (
   google_id TEXT UNIQUE,
   failed_login_count INTEGER DEFAULT 0,
   locked_until DATETIME,
+  referral_code TEXT UNIQUE,
+  affiliate_balance REAL DEFAULT 0,
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -51,9 +53,53 @@ CREATE TABLE IF NOT EXISTS orders (
   customer_phone TEXT NOT NULL,
   customer_address TEXT,
   status TEXT DEFAULT 'yeni',
+  subtotal REAL NOT NULL DEFAULT 0,
+  shipping_zone_id INTEGER,
+  shipping_fee REAL NOT NULL DEFAULT 0,
+  warranty_selected INTEGER DEFAULT 0,
+  warranty_fee REAL NOT NULL DEFAULT 0,
   total REAL NOT NULL,
+  affiliate_id INTEGER,
+  commission_amount REAL DEFAULT 0,
+  commission_status TEXT DEFAULT 'none',
+  commission_eligible_at DATETIME,
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-  FOREIGN KEY (customer_id) REFERENCES customers(id)
+  FOREIGN KEY (customer_id) REFERENCES customers(id),
+  FOREIGN KEY (affiliate_id) REFERENCES customers(id),
+  FOREIGN KEY (shipping_zone_id) REFERENCES shipping_zones(id)
+);
+
+-- Delivery zones, priced by distance from the Abşeron Ticarət Mərkəzi /
+-- Sədərək dispatch point. Flat fee per order (not per item) — multiple
+-- products in one order are consolidated into as few boxes as possible.
+CREATE TABLE IF NOT EXISTS shipping_zones (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  name TEXT NOT NULL,
+  kind TEXT NOT NULL DEFAULT 'city', -- 'city' (Bakı daxili) | 'region' (rayonlar)
+  price REAL NOT NULL,
+  sort_order INTEGER DEFAULT 0,
+  is_active INTEGER DEFAULT 1
+);
+
+-- Affiliate/referral commission ledger — one row per order that came
+-- through a referral link, so the 15-day return-window hold and the 50 AZN
+-- payout threshold can be computed without touching orders directly.
+CREATE TABLE IF NOT EXISTS payout_requests (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  affiliate_id INTEGER NOT NULL,
+  amount REAL NOT NULL,
+  status TEXT DEFAULT 'gozleyir', -- gozleyir | odenildi | legv_edildi
+  note TEXT,
+  requested_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  resolved_at DATETIME,
+  FOREIGN KEY (affiliate_id) REFERENCES customers(id)
+);
+
+-- Site-wide tunables an admin can change without touching code: affiliate
+-- commission %, payout threshold, return-window length, warranty add-on.
+CREATE TABLE IF NOT EXISTS settings (
+  key TEXT PRIMARY KEY,
+  value TEXT
 );
 
 CREATE TABLE IF NOT EXISTS order_items (

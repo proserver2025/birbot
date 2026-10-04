@@ -23,6 +23,7 @@
       </form>
       <div class="nav-actions">
         <% if (typeof customer !== 'undefined' && customer) { %>
+          <a href="/tereflik">💰 Tərəfdaşlıq</a>
           <a href="/hesabim">👤 <%= customer.full_name.split(' ')[0] %></a>
           <form action="/cixis" method="post" style="display:inline"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><button class="btn btn-sm btn-outline" type="submit">Çıxış</button></form>
         <% } else { %>

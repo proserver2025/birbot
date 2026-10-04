@@ -10,6 +10,8 @@ const cheerio = require('cheerio');
 const rateLimit = require('express-rate-limit');
 const db = require('../db');
 const csrfMiddleware = require('../middleware/csrf');
+const settings = require('../config/settings');
+const affiliates = require('../lib/affiliates');
 const { requireAdmin } = require('../middleware/auth');
 const { isLocked, registerFailure, resetFailures, LOCK_MINUTES } = require('../middleware/loginGuard');
 
@@ -62,11 +64,17 @@ router.use(requireAdmin);
 
 // --- Dashboard ---
 router.get('/', (req, res) => {
+  affiliates.settleEligibleCommissions();
   const stats = {
     products: db.prepare('SELECT COUNT(*) c FROM products').get().c,
     orders: db.prepare('SELECT COUNT(*) c FROM orders').get().c,
     customers: db.prepare('SELECT COUNT(*) c FROM customers').get().c,
-    revenue: db.prepare("SELECT COALESCE(SUM(total),0) s FROM orders WHERE status != 'legv_edildi'").get().s,
+    // Taxable sale amount — shipping and warranty are the customer's own
+    // cost, collected on top, and excluded from this figure on purpose.
+    revenue: db.prepare("SELECT COALESCE(SUM(subtotal),0) s FROM orders WHERE status != 'legv_edildi'").get().s,
+    shippingCollected: db.prepare("SELECT COALESCE(SUM(shipping_fee),0) s FROM orders WHERE status != 'legv_edildi'").get().s,
+    warrantyCollected: db.prepare("SELECT COALESCE(SUM(warranty_fee),0) s FROM orders WHERE status != 'legv_edildi'").get().s,
+    pendingPayouts: db.prepare("SELECT COUNT(*) c FROM payout_requests WHERE status = 'gozleyir'").get().c,
   };
   const recentOrders = db.prepare('SELECT * FROM orders ORDER BY created_at DESC LIMIT 10').all();
   res.render('admin/dashboard', { title: 'Admin Panel', stats, recentOrders, layout: 'admin/layout' });
@@ -283,7 +291,13 @@ router.get('/sifarisler', (req, res) => {
 });
 
 router.get('/sifarisler/:id', (req, res) => {
-  const order = db.prepare('SELECT * FROM orders WHERE id = ?').get(req.params.id);
+  const order = db
+    .prepare(
+      `SELECT o.*, z.name AS zone_name FROM orders o
+       LEFT JOIN shipping_zones z ON z.id = o.shipping_zone_id
+       WHERE o.id = ?`
+    )
+    .get(req.params.id);
   if (!order) return res.redirect('/admin/sifarisler');
   const items = db.prepare('SELECT * FROM order_items WHERE order_id = ?').all(order.id);
   res.render('admin/order-detail', { title: `Sifariş #${order.id}`, order, items, layout: 'admin/layout' });
@@ -298,6 +312,103 @@ router.post('/sifarisler/:id/status', (req, res) => {
 router.get('/musteriler', (req, res) => {
   const customers = db.prepare('SELECT * FROM customers ORDER BY created_at DESC').all();
   res.render('admin/customers', { title: 'Müştərilər', customers, layout: 'admin/layout' });
+});
+
+// --- Çatdırılma zonaları ---
+router.get('/zonalar', (req, res) => {
+  const zones = db.prepare('SELECT * FROM shipping_zones ORDER BY kind, sort_order').all();
+  res.render('admin/zones', { title: 'Çatdırılma zonaları', zones, layout: 'admin/layout' });
+});
+
+router.post('/zonalar/yeni', (req, res) => {
+  const { name, kind, price } = req.body;
+  if (name && price) {
+    db.prepare('INSERT INTO shipping_zones (name, kind, price, sort_order) VALUES (?, ?, ?, ?)').run(
+      name,
+      kind === 'region' ? 'region' : 'city',
+      parseFloat(price),
+      999
+    );
+  }
+  res.redirect('/admin/zonalar');
+});
+
+router.post('/zonalar/:id/redakte', (req, res) => {
+  const { name, price, is_active } = req.body;
+  db.prepare('UPDATE shipping_zones SET name = ?, price = ?, is_active = ? WHERE id = ?').run(
+    name,
+    parseFloat(price),
+    is_active ? 1 : 0,
+    req.params.id
+  );
+  res.redirect('/admin/zonalar');
+});
+
+router.post('/zonalar/:id/sil', (req, res) => {
+  db.prepare('DELETE FROM shipping_zones WHERE id = ?').run(req.params.id);
+  res.redirect('/admin/zonalar');
+});
+
+// --- Tərəfdaşlar (affiliate) ---
+router.get('/tereflik', (req, res) => {
+  affiliates.settleEligibleCommissions();
+  const partners = db
+    .prepare(
+      `SELECT c.id, c.full_name, c.email, c.referral_code, c.affiliate_balance,
+              COUNT(o.id) AS order_count, COALESCE(SUM(o.commission_amount),0) AS total_commission
+       FROM customers c
+       LEFT JOIN orders o ON o.affiliate_id = c.id
+       WHERE c.referral_code IS NOT NULL
+       GROUP BY c.id
+       ORDER BY total_commission DESC`
+    )
+    .all();
+  const payoutRequests = db
+    .prepare(
+      `SELECT p.*, c.full_name, c.email FROM payout_requests p
+       JOIN customers c ON c.id = p.affiliate_id
+       ORDER BY (p.status = 'gozleyir') DESC, p.requested_at DESC`
+    )
+    .all();
+  res.render('admin/affiliates', { title: 'Tərəfdaşlar', partners, payoutRequests, layout: 'admin/layout' });
+});
+
+router.post('/tereflik/:id/ode', (req, res) => {
+  const payout = db.prepare('SELECT * FROM payout_requests WHERE id = ?').get(req.params.id);
+  if (payout && payout.status === 'gozleyir') {
+    db.prepare("UPDATE payout_requests SET status = 'odenildi', resolved_at = CURRENT_TIMESTAMP WHERE id = ?").run(payout.id);
+  }
+  res.redirect('/admin/tereflik');
+});
+
+router.post('/tereflik/:id/legv', (req, res) => {
+  const payout = db.prepare('SELECT * FROM payout_requests WHERE id = ?').get(req.params.id);
+  if (payout && payout.status === 'gozleyir') {
+    // Refund the requested amount back onto the affiliate's balance.
+    db.prepare("UPDATE payout_requests SET status = 'legv_edildi', resolved_at = CURRENT_TIMESTAMP WHERE id = ?").run(payout.id);
+    db.prepare('UPDATE customers SET affiliate_balance = affiliate_balance + ? WHERE id = ?').run(payout.amount, payout.affiliate_id);
+  }
+  res.redirect('/admin/tereflik');
+});
+
+// --- Ayarlar ---
+router.get('/ayarlar', (req, res) => {
+  res.render('admin/settings', { title: 'Ayarlar', settings: settings.all(), layout: 'admin/layout' });
+});
+
+router.post('/ayarlar', (req, res) => {
+  const fields = [
+    'affiliate_commission_percent',
+    'affiliate_hold_days',
+    'affiliate_payout_threshold',
+    'warranty_price',
+    'warranty_terms',
+  ];
+  fields.forEach((key) => {
+    if (req.body[key] !== undefined) settings.set(key, req.body[key]);
+  });
+  settings.set('warranty_enabled', req.body.warranty_enabled ? '1' : '0');
+  res.redirect('/admin/ayarlar');
 });
 
 module.exports = router;

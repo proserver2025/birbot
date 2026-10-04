@@ -1,7 +1,14 @@
 <div class="form-card" style="text-align:center;">
   <h1>✅ Sifariş qəbul olundu!</h1>
   <p>Sifariş nömrəniz: <strong>#<%= orderId %></strong></p>
-  <p>Ümumi məbləğ: <strong><%= total.toFixed(2) %> ₼</strong></p>
+  <div style="text-align:left;font-size:14px;margin:18px 0;border-top:1px solid var(--border);padding-top:12px;">
+    <div style="display:flex;justify-content:space-between;"><span>Məhsul cəmi</span><span><%= subtotal.toFixed(2) %> ₼</span></div>
+    <div style="display:flex;justify-content:space-between;"><span>Çatdırılma</span><span><%= shippingFee.toFixed(2) %> ₼</span></div>
+    <% if (warrantyFee > 0) { %>
+    <div style="display:flex;justify-content:space-between;"><span>Zəmanət</span><span><%= warrantyFee.toFixed(2) %> ₼</span></div>
+    <% } %>
+    <div style="display:flex;justify-content:space-between;font-weight:700;margin-top:8px;"><span>Ümumi</span><span><%= total.toFixed(2) %> ₼</span></div>
+  </div>
   <p>Tezliklə sizinlə əlaqə saxlanılacaq.</p>
   <a class="btn" href="/">Ana səhifəyə qayıt</a>
 </div>

@@ -1,0 +1,69 @@
+<div class="admin-topbar"><h1>Çatdırılma zonaları</h1></div>
+<p style="color:var(--muted);max-width:60ch;margin-top:-10px;">
+  Sədərək / Abşeron Ticarət Mərkəzindən məsafəyə görə sıralanıb. Qiymət bir sifarişə aiddir (məhsul sayından asılı olmayaraq).
+</p>
+
+<div class="admin-card" style="max-width:600px;">
+  <h3>Yeni zona</h3>
+  <form action="/admin/zonalar/yeni" method="post" style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;">
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+    <div class="form-group" style="flex:2;margin:0;"><label>Ad</label><input type="text" name="name" required></div>
+    <div class="form-group" style="margin:0;"><label>Növ</label>
+      <select name="kind"><option value="city">Bakı daxili</option><option value="region">Rayon</option></select>
+    </div>
+    <div class="form-group" style="margin:0;"><label>Qiymət (₼)</label><input type="number" step="0.01" name="price" required style="width:100px;"></div>
+    <button class="btn" type="submit">Əlavə et</button>
+  </form>
+</div>
+
+<div class="admin-card">
+  <h3>Bakı daxili</h3>
+  <table class="data-table">
+    <thead><tr><th>Ad</th><th>Qiymət (₼)</th><th>Aktiv</th><th></th></tr></thead>
+    <tbody>
+      <% zones.filter(z => z.kind === 'city').forEach(function(z) { %>
+        <tr>
+          <form action="/admin/zonalar/<%= z.id %>/redakte" method="post" style="display:contents;">
+            <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+            <td><input type="text" name="name" value="<%= z.name %>" style="width:100%;padding:6px;border:1px solid var(--border);border-radius:6px;"></td>
+            <td><input type="number" step="0.01" name="price" value="<%= z.price %>" style="width:90px;padding:6px;border:1px solid var(--border);border-radius:6px;"></td>
+            <td><input type="checkbox" name="is_active" <%= z.is_active ? 'checked' : '' %> style="width:auto;"></td>
+            <td style="display:flex;gap:6px;">
+              <button class="btn btn-sm btn-outline" type="submit">Saxla</button>
+          </form>
+              <form action="/admin/zonalar/<%= z.id %>/sil" method="post" onsubmit="return confirm('Silinsin?');">
+                <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                <button class="btn btn-sm btn-danger" type="submit">Sil</button>
+              </form>
+            </td>
+        </tr>
+      <% }) %>
+    </tbody>
+  </table>
+</div>
+
+<div class="admin-card">
+  <h3>Rayonlar</h3>
+  <table class="data-table">
+    <thead><tr><th>Ad</th><th>Qiymət (₼)</th><th>Aktiv</th><th></th></tr></thead>
+    <tbody>
+      <% zones.filter(z => z.kind === 'region').forEach(function(z) { %>
+        <tr>
+          <form action="/admin/zonalar/<%= z.id %>/redakte" method="post" style="display:contents;">
+            <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+            <td><input type="text" name="name" value="<%= z.name %>" style="width:100%;padding:6px;border:1px solid var(--border);border-radius:6px;"></td>
+            <td><input type="number" step="0.01" name="price" value="<%= z.price %>" style="width:90px;padding:6px;border:1px solid var(--border);border-radius:6px;"></td>
+            <td><input type="checkbox" name="is_active" <%= z.is_active ? 'checked' : '' %> style="width:auto;"></td>
+            <td style="display:flex;gap:6px;">
+              <button class="btn btn-sm btn-outline" type="submit">Saxla</button>
+          </form>
+              <form action="/admin/zonalar/<%= z.id %>/sil" method="post" onsubmit="return confirm('Silinsin?');">
+                <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                <button class="btn btn-sm btn-danger" type="submit">Sil</button>
+              </form>
+            </td>
+        </tr>
+      <% }) %>
+    </tbody>
+  </table>
+</div>

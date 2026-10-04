@@ -1,0 +1,83 @@
+<div class="section">
+  <div class="section-title"><h2>Tərəfdaşlıq proqramı</h2></div>
+
+  <p style="color:var(--muted);max-width:60ch;">
+    Öz linkini paylaş — kimsə o link üzərindən bizdən məhsul alsa, satışın <strong><%= commissionPercent %>%</strong>-i
+    sənin balansına yazılır. Pul <strong><%= holdDays %> gün</strong> sonra (qaytarma müddəti bitəndən sonra)
+    "təmizlənir" və çıxarıla bilən olur. Balansın <strong><%= threshold %> ₼</strong>-ə çatanda çıxarış sorğusu göndərə bilərsən.
+  </p>
+
+  <% if (error) { %><div class="form-error" style="max-width:500px;"><%= error %></div><% } %>
+  <% if (success) { %><div style="background:#dcfce7;color:#166534;padding:11px 14px;border-radius:10px;margin-bottom:16px;max-width:500px;font-size:14px;"><%= success %></div><% } %>
+
+  <div class="admin-card" style="max-width:600px;">
+    <h3>Sənin referral linkin</h3>
+    <div style="display:flex;gap:10px;">
+      <input type="text" id="refLink" readonly value="" style="flex:1;padding:10px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;">
+      <button class="btn btn-sm" type="button" onclick="copyLink()">Kopyala</button>
+    </div>
+    <p style="font-size:12.5px;color:var(--muted);margin-top:8px;">Kod: <strong><%= customer.referral_code %></strong></p>
+  </div>
+
+  <div class="stat-cards">
+    <div class="stat-card"><div class="num"><%= customer.affiliate_balance.toFixed(2) %> ₼</div><div class="label">Çıxarıla bilən balans</div></div>
+    <div class="stat-card"><div class="num"><%= pendingTotal.toFixed(2) %> ₼</div><div class="label">Gözləmədə (<%= holdDays %> gün)</div></div>
+    <div class="stat-card"><div class="num"><%= paidTotal.toFixed(2) %> ₼</div><div class="label">İndiyədək ödənilib</div></div>
+  </div>
+
+  <div class="admin-card" style="max-width:500px;">
+    <h3>Çıxarış</h3>
+    <% if (canRequestPayout) { %>
+      <form action="/tereflik/cek" method="post">
+        <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+        <p>Balansın (<%= customer.affiliate_balance.toFixed(2) %> ₼) çıxarış üçün hazırdır.</p>
+        <button class="btn" type="submit">Çıxarış sorğusu göndər</button>
+      </form>
+    <% } else { %>
+      <p style="color:var(--muted);">Minimum <%= threshold %> ₼ olmalıdır. Hələ <%= (threshold - customer.affiliate_balance).toFixed(2) %> ₼ qalıb.</p>
+    <% } %>
+  </div>
+
+  <% if (referredOrders.length) { %>
+  <div class="admin-card">
+    <h3>Gətirdiyin sifarişlər</h3>
+    <table class="data-table">
+      <thead><tr><th>№</th><th>Tarix</th><th>Məhsul məbləği</th><th>Komissiya</th><th>Status</th></tr></thead>
+      <tbody>
+        <% referredOrders.forEach(function(o) { %>
+          <tr>
+            <td>#<%= o.id %></td>
+            <td><%= o.created_at %></td>
+            <td><%= o.subtotal.toFixed(2) %> ₼</td>
+            <td><%= o.commission_amount.toFixed(2) %> ₼</td>
+            <td><span class="status-tag status-<%= o.commission_status === 'temizlendi' ? 'tamamlandi' : (o.commission_status === 'legv_edildi' ? 'legv_edildi' : 'yeni') %>"><%= o.commission_status %></span></td>
+          </tr>
+        <% }) %>
+      </tbody>
+    </table>
+  </div>
+  <% } %>
+
+  <% if (payoutRequests.length) { %>
+  <div class="admin-card">
+    <h3>Çıxarış sorğuların</h3>
+    <table class="data-table">
+      <thead><tr><th>Tarix</th><th>Məbləğ</th><th>Status</th></tr></thead>
+      <tbody>
+        <% payoutRequests.forEach(function(p) { %>
+          <tr><td><%= p.requested_at %></td><td><%= p.amount.toFixed(2) %> ₼</td><td><%= p.status %></td></tr>
+        <% }) %>
+      </tbody>
+    </table>
+  </div>
+  <% } %>
+</div>
+
+<script>
+  document.getElementById('refLink').value = window.location.origin + '/?ref=<%= customer.referral_code %>';
+  function copyLink() {
+    const input = document.getElementById('refLink');
+    input.select();
+    navigator.clipboard?.writeText(input.value).catch(() => {});
+  }
+</script>

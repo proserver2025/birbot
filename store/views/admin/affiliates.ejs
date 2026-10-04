@@ -1,0 +1,54 @@
+<div class="admin-topbar"><h1>Tərəfdaşlar</h1></div>
+
+<div class="admin-card">
+  <h3>Çıxarış sorğuları</h3>
+  <% if (!payoutRequests.length) { %>
+    <p style="color:var(--muted);">Hələ sorğu yoxdur.</p>
+  <% } else { %>
+    <table class="data-table">
+      <thead><tr><th>Tərəfdaş</th><th>Məbləğ</th><th>Tarix</th><th>Status</th><th></th></tr></thead>
+      <tbody>
+        <% payoutRequests.forEach(function(p) { %>
+          <tr>
+            <td><%= p.full_name %><br><span style="color:var(--muted);font-size:12px;"><%= p.email %></span></td>
+            <td><%= p.amount.toFixed(2) %> ₼</td>
+            <td><%= p.requested_at %></td>
+            <td><span class="status-tag <%= p.status === 'odenildi' ? 'status-tamamlandi' : (p.status === 'legv_edildi' ? 'status-legv_edildi' : 'status-yeni') %>"><%= p.status %></span></td>
+            <td style="display:flex;gap:6px;">
+              <% if (p.status === 'gozleyir') { %>
+                <form action="/admin/tereflik/<%= p.id %>/ode" method="post">
+                  <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                  <button class="btn btn-sm" type="submit">Ödənildi işarələ</button>
+                </form>
+                <form action="/admin/tereflik/<%= p.id %>/legv" method="post" onsubmit="return confirm('Ləğv edilsin? Məbləğ balansa geri qaytarılacaq.');">
+                  <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                  <button class="btn btn-sm btn-danger" type="submit">Ləğv et</button>
+                </form>
+              <% } %>
+            </td>
+          </tr>
+        <% }) %>
+      </tbody>
+    </table>
+  <% } %>
+</div>
+
+<div class="admin-card">
+  <h3>Bütün tərəfdaşlar</h3>
+  <table class="data-table">
+    <thead><tr><th>Ad</th><th>Email</th><th>Kod</th><th>Sifariş sayı</th><th>Cəmi komissiya</th><th>Hazırkı balans</th></tr></thead>
+    <tbody>
+      <% partners.forEach(function(p) { %>
+        <tr>
+          <td><%= p.full_name %></td>
+          <td><%= p.email %></td>
+          <td><code><%= p.referral_code %></code></td>
+          <td><%= p.order_count %></td>
+          <td><%= p.total_commission.toFixed(2) %> ₼</td>
+          <td><%= p.affiliate_balance.toFixed(2) %> ₼</td>
+        </tr>
+      <% }) %>
+      <% if (!partners.length) { %><tr><td colspan="6" style="color:var(--muted);">Hələ heç kim tərəfdaşlıq kodu yaratmayıb.</td></tr><% } %>
+    </tbody>
+  </table>
+</div>

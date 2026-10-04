@@ -4,6 +4,8 @@
   <p><strong>Telefon:</strong> <%= order.customer_phone %></p>
   <p><strong>Ünvan:</strong> <%= order.customer_address %></p>
   <p><strong>Tarix:</strong> <%= order.created_at %></p>
+  <p><strong>Çatdırılma zonası:</strong> <%= order.zone_name || '—' %></p>
+  <% if (order.warranty_selected) { %><p><strong>Zəmanət talonu:</strong> ✅ seçilib (<%= order.warranty_fee.toFixed(2) %> ₼)</p><% } %>
   <form action="/admin/sifarisler/<%= order.id %>/status" method="post" style="display:flex;gap:10px;align-items:center;margin-top:14px;">
     <input type="hidden" name="_csrf" value="<%= csrfToken %>">
     <label>Status:</label>
@@ -30,5 +32,10 @@
       <% }) %>
     </tbody>
   </table>
-  <h3 style="text-align:right;">Ümumi: <%= order.total.toFixed(2) %> ₼</h3>
+  <div style="text-align:right;font-size:14px;margin-top:10px;">
+    <div>Məhsul cəmi: <%= order.subtotal.toFixed(2) %> ₼</div>
+    <div>Çatdırılma: <%= order.shipping_fee.toFixed(2) %> ₼</div>
+    <% if (order.warranty_fee > 0) { %><div>Zəmanət: <%= order.warranty_fee.toFixed(2) %> ₼</div><% } %>
+    <h3 style="margin-top:6px;">Ümumi: <%= order.total.toFixed(2) %> ₼</h3>
+  </div>
 </div>

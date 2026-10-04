@@ -4,6 +4,9 @@ const rateLimit = require('express-rate-limit');
 const db = require('../db');
 const brand = require('../config/brand');
 const google = require('../config/google');
+const settings = require('../config/settings');
+const shipping = require('../lib/shipping');
+const affiliates = require('../lib/affiliates');
 const { requireCustomer } = require('../middleware/auth');
 const { isLocked, registerFailure, resetFailures, LOCK_MINUTES } = require('../middleware/loginGuard');
 
@@ -25,6 +28,17 @@ router.use((req, res, next) => {
     ? db.prepare('SELECT id, full_name, email FROM customers WHERE id = ?').get(req.session.customerId)
     : null;
   res.locals.cartCount = (req.session.cart || []).reduce((sum, i) => sum + i.qty, 0);
+  next();
+});
+
+// Referral capture — a link like /mehsullar?ref=A7K2PQ tags the visitor's
+// session so the eventual order (even days later) is attributed to that
+// partner. Self-referral is blocked at checkout time, not here.
+router.use((req, res, next) => {
+  if (req.query.ref) {
+    const partner = affiliates.findByReferralCode(String(req.query.ref).toUpperCase());
+    if (partner) req.session.refCode = partner.referral_code;
+  }
   next();
 });
 
@@ -104,20 +118,47 @@ router.post('/sebet/sil/:id', (req, res) => {
 
 router.get('/sebet', (req, res) => {
   const cart = req.session.cart || [];
-  const total = cart.reduce((sum, i) => sum + i.price * i.qty, 0);
-  res.render('cart', { cart, total, title: 'Səbətim' });
+  const subtotal = cart.reduce((sum, i) => sum + i.price * i.qty, 0);
+  const zones = shipping.listZones();
+  const warrantyEnabled = settings.get('warranty_enabled', '1') === '1';
+  const warrantyPrice = settings.getNumber('warranty_price', 0);
+  const warrantyTerms = settings.get('warranty_terms', '');
+  res.render('cart', { cart, subtotal, zones, warrantyEnabled, warrantyPrice, warrantyTerms, title: 'Səbətim' });
 });
 
 router.post('/sifaris', (req, res) => {
   const cart = req.session.cart || [];
   if (cart.length === 0) return res.redirect('/sebet');
-  const { name, phone, address } = req.body;
-  const total = cart.reduce((sum, i) => sum + i.price * i.qty, 0);
+  const { name, phone, address, shipping_zone_id, warranty } = req.body;
+
+  const subtotal = cart.reduce((sum, i) => sum + i.price * i.qty, 0);
+  // Shipping is one flat fee for the whole order (all items go out
+  // together in as few boxes as possible), never multiplied per item.
+  const shippingFee = shipping.feeForZone(shipping_zone_id ? parseInt(shipping_zone_id, 10) : null);
+  const warrantyEnabled = settings.get('warranty_enabled', '1') === '1';
+  const warrantySelected = warrantyEnabled && warranty === 'on';
+  const warrantyFee = warrantySelected ? settings.getNumber('warranty_price', 0) : 0;
+  // Shipping + warranty are the customer's own cost, outside our taxable
+  // revenue — kept in separate columns so any future receipt only
+  // reports `subtotal` as the sale amount.
+  const total = subtotal + shippingFee + warrantyFee;
+
   const insertOrder = db.prepare(
-    `INSERT INTO orders (customer_id, customer_name, customer_phone, customer_address, total)
-     VALUES (?, ?, ?, ?, ?)`
+    `INSERT INTO orders (customer_id, customer_name, customer_phone, customer_address, subtotal, shipping_zone_id, shipping_fee, warranty_selected, warranty_fee, total)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
   );
-  const result = insertOrder.run(req.session.customerId || null, name, phone, address, total);
+  const result = insertOrder.run(
+    req.session.customerId || null,
+    name,
+    phone,
+    address,
+    subtotal,
+    shipping_zone_id || null,
+    shippingFee,
+    warrantySelected ? 1 : 0,
+    warrantyFee,
+    total
+  );
   const insertItem = db.prepare(
     `INSERT INTO order_items (order_id, product_id, product_name, unit_price, qty) VALUES (?, ?, ?, ?, ?)`
   );
@@ -126,8 +167,24 @@ router.post('/sifaris', (req, res) => {
     insertItem.run(result.lastInsertRowid, item.id, item.name, item.price, item.qty);
     decStock.run(item.qty, item.id);
   });
+
+  // Attribute the order to a referring partner, if any — never to oneself.
+  if (req.session.refCode) {
+    const partner = affiliates.findByReferralCode(req.session.refCode);
+    if (partner && partner.id !== req.session.customerId) {
+      affiliates.attributeOrder(result.lastInsertRowid, partner.id, subtotal);
+    }
+  }
+
   req.session.cart = [];
-  res.render('sifaris-tamamlandi', { orderId: result.lastInsertRowid, total, title: 'Sifariş qəbul olundu' });
+  res.render('sifaris-tamamlandi', {
+    orderId: result.lastInsertRowid,
+    subtotal,
+    shippingFee,
+    warrantyFee,
+    total,
+    title: 'Sifariş qəbul olundu',
+  });
 });
 
 // --- Customer auth ---
@@ -212,6 +269,42 @@ router.get('/hesabim', requireCustomer, (req, res) => {
     .prepare('SELECT * FROM orders WHERE customer_id = ? ORDER BY created_at DESC')
     .all(req.session.customerId);
   res.render('account', { orders, title: 'Hesabım' });
+});
+
+// --- Tərəfdaşlıq (həvalə / referral) proqramı ---
+router.get('/tereflik', requireCustomer, (req, res) => {
+  affiliates.ensureReferralCode(req.session.customerId);
+  const summary = affiliates.getAffiliateSummary(req.session.customerId);
+  const commissionPercent = settings.getNumber('affiliate_commission_percent', 10);
+  const holdDays = settings.getNumber('affiliate_hold_days', 15);
+  res.render('partner', { ...summary, commissionPercent, holdDays, title: 'Tərəfdaşlıq proqramı', error: null, success: null });
+});
+
+router.post('/tereflik/cek', requireCustomer, (req, res) => {
+  const summary = affiliates.getAffiliateSummary(req.session.customerId);
+  const commissionPercent = settings.getNumber('affiliate_commission_percent', 10);
+  const holdDays = settings.getNumber('affiliate_hold_days', 15);
+  if (!summary.canRequestPayout) {
+    return res.render('partner', {
+      ...summary,
+      commissionPercent,
+      holdDays,
+      title: 'Tərəfdaşlıq proqramı',
+      error: `Minimum çıxarış həddi ${summary.threshold} ₼-dir, hələ ona çatmamısınız.`,
+      success: null,
+    });
+  }
+  db.prepare('INSERT INTO payout_requests (affiliate_id, amount) VALUES (?, ?)').run(req.session.customerId, summary.customer.affiliate_balance);
+  db.prepare('UPDATE customers SET affiliate_balance = 0 WHERE id = ?').run(req.session.customerId);
+  const updated = affiliates.getAffiliateSummary(req.session.customerId);
+  res.render('partner', {
+    ...updated,
+    commissionPercent,
+    holdDays,
+    title: 'Tərəfdaşlıq proqramı',
+    error: null,
+    success: 'Çıxarış sorğusu göndərildi. Admin təsdiqlədikdən sonra ödəniş ediləcək.',
+  });
 });
 
 module.exports = router;

@@ -22,17 +22,75 @@
         <% }) %>
       </tbody>
     </table>
-    <h3 style="text-align:right;margin-top:16px;">Ümumi: <%= total.toFixed(2) %> ₼</h3>
+    <h3 style="text-align:right;margin-top:16px;">Məhsul cəmi: <%= subtotal.toFixed(2) %> ₼</h3>
 
-    <div class="form-card" style="margin-top:30px;">
+    <div class="form-card" style="margin-top:30px;max-width:520px;">
       <h1>Sifarişi tamamla</h1>
-      <form action="/sifaris" method="post">
+      <form action="/sifaris" method="post" id="checkoutForm">
         <input type="hidden" name="_csrf" value="<%= csrfToken %>">
         <div class="form-group"><label>Ad, Soyad</label><input type="text" name="name" required></div>
         <div class="form-group"><label>Telefon</label><input type="text" name="phone" required placeholder="+994 __ ___ __ __"></div>
         <div class="form-group"><label>Çatdırılma ünvanı</label><textarea name="address" rows="3" required></textarea></div>
+
+        <div class="form-group">
+          <label>Çatdırılma zonası</label>
+          <select name="shipping_zone_id" id="zoneSelect" required onchange="recalc()">
+            <option value="">— seçin —</option>
+            <optgroup label="Bakı daxili">
+              <% zones.filter(z => z.kind === 'city').forEach(function(z) { %>
+                <option value="<%= z.id %>" data-price="<%= z.price %>"><%= z.name %> — <%= z.price.toFixed(2) %> ₼</option>
+              <% }) %>
+            </optgroup>
+            <optgroup label="Rayonlar">
+              <% zones.filter(z => z.kind === 'region').forEach(function(z) { %>
+                <option value="<%= z.id %>" data-price="<%= z.price %>"><%= z.name %> — <%= z.price.toFixed(2) %> ₼</option>
+              <% }) %>
+            </optgroup>
+          </select>
+          <p style="font-size:12px;color:var(--muted);margin-top:4px;">
+            Çatdırılma qiyməti bir sifarişə görədir (neçə məhsul olmasından asılı olmayaraq) — hamısı birlikdə göndərilir.
+          </p>
+        </div>
+
+        <% if (warrantyEnabled) { %>
+        <div class="form-group" style="background:var(--surface-2);padding:12px;border-radius:10px;">
+          <label style="display:flex;align-items:flex-start;gap:8px;">
+            <input type="checkbox" name="warranty" id="warrantyCheck" style="width:auto;margin-top:3px;" onchange="recalc()">
+            <span>
+              <strong>Zəmanət talonu istəyirəm (+<%= warrantyPrice.toFixed(2) %> ₼)</strong><br>
+              <span style="font-size:12.5px;color:var(--muted);"><%= warrantyTerms %></span>
+            </span>
+          </label>
+        </div>
+        <% } %>
+
+        <div style="border-top:1px solid var(--border);margin:16px 0;padding-top:12px;font-size:14px;">
+          <div style="display:flex;justify-content:space-between;"><span>Məhsul cəmi</span><span id="sumSubtotal"><%= subtotal.toFixed(2) %> ₼</span></div>
+          <div style="display:flex;justify-content:space-between;"><span>Çatdırılma</span><span id="sumShipping">0.00 ₼</span></div>
+          <% if (warrantyEnabled) { %>
+          <div style="display:flex;justify-content:space-between;"><span>Zəmanət</span><span id="sumWarranty">0.00 ₼</span></div>
+          <% } %>
+          <div style="display:flex;justify-content:space-between;font-weight:700;font-size:16px;margin-top:8px;"><span>Ümumi</span><span id="sumTotal"><%= subtotal.toFixed(2) %> ₼</span></div>
+        </div>
+
         <button class="btn" type="submit" style="width:100%;">Sifarişi təsdiqlə</button>
       </form>
     </div>
+
+    <script>
+      const SUBTOTAL = <%= subtotal %>;
+      const WARRANTY_PRICE = <%= warrantyEnabled ? warrantyPrice : 0 %>;
+      function recalc() {
+        const sel = document.getElementById('zoneSelect');
+        const opt = sel.options[sel.selectedIndex];
+        const shipping = opt && opt.dataset.price ? parseFloat(opt.dataset.price) : 0;
+        const wCheck = document.getElementById('warrantyCheck');
+        const warranty = wCheck && wCheck.checked ? WARRANTY_PRICE : 0;
+        document.getElementById('sumShipping').textContent = shipping.toFixed(2) + ' ₼';
+        const wEl = document.getElementById('sumWarranty');
+        if (wEl) wEl.textContent = warranty.toFixed(2) + ' ₼';
+        document.getElementById('sumTotal').textContent = (SUBTOTAL + shipping + warranty).toFixed(2) + ' ₼';
+      }
+    </script>
   <% } %>
 </div>

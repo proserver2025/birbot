@@ -1,0 +1,28 @@
+<div class="admin-topbar"><h1>Ayarlar</h1></div>
+
+<div class="admin-card" style="max-width:600px;">
+  <h3>Tərəfdaşlıq (həvalə) proqramı</h3>
+  <form action="/admin/ayarlar" method="post">
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+    <div class="form-group"><label>Komissiya faizi (%)</label><input type="number" step="0.1" name="affiliate_commission_percent" value="<%= settings.affiliate_commission_percent %>"></div>
+    <div class="form-group"><label>Gözləmə müddəti (gün) — qaytarma müddəti bitənə qədər</label><input type="number" name="affiliate_hold_days" value="<%= settings.affiliate_hold_days %>"></div>
+    <div class="form-group"><label>Minimum çıxarış həddi (₼)</label><input type="number" step="0.01" name="affiliate_payout_threshold" value="<%= settings.affiliate_payout_threshold %>"></div>
+
+    <h3 style="margin-top:24px;">Zəmanət talonu</h3>
+    <div class="form-group">
+      <label><input type="checkbox" name="warranty_enabled" <%= settings.warranty_enabled === '1' ? 'checked' : '' %> style="width:auto;display:inline;"> Zəmanət seçimi aktivdir</label>
+    </div>
+    <div class="form-group"><label>Qiymət (₼) — sifarişə bir dəfə əlavə olunur</label><input type="number" step="0.01" name="warranty_price" value="<%= settings.warranty_price %>"></div>
+    <div class="form-group"><label>Şərtlər (müştəriyə göstərilən mətn)</label><textarea name="warranty_terms" rows="3"><%= settings.warranty_terms %></textarea></div>
+
+    <button class="btn" type="submit">Yadda saxla</button>
+  </form>
+</div>
+
+<div class="admin-card" style="max-width:600px;">
+  <h3>⚠️ Qeyd</h3>
+  <p style="color:var(--muted);font-size:13.5px;">
+    Çatdırılma zonalarının qiymətlərini <a href="/admin/zonalar">Çatdırılma zonaları</a> səhifəsindən idarə edirsiniz.
+    Yol xərci və zəmanət məbləği satış hesabatında (subtotal) göstərilmir — ayrıca toplanır, vergiyə daxil edilmir.
+  </p>
+</div>
