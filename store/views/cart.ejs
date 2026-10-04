@@ -1,0 +1,36 @@
+<div class="section">
+  <div class="section-title"><h2>Səbətim</h2></div>
+  <% if (!cart.length) { %>
+    <p>Səbətiniz boşdur. <a href="/mehsullar">Alış-verişə başla</a></p>
+  <% } else { %>
+    <table class="data-table">
+      <thead><tr><th>Məhsul</th><th>Qiymət</th><th>Say</th><th>Cəm</th><th></th></tr></thead>
+      <tbody>
+        <% cart.forEach(function(i) { %>
+          <tr>
+            <td><%= i.name %></td>
+            <td><%= i.price.toFixed(2) %> ₼</td>
+            <td><%= i.qty %></td>
+            <td><%= (i.price * i.qty).toFixed(2) %> ₼</td>
+            <td>
+              <form action="/sebet/sil/<%= i.id %>" method="post">
+                <button class="btn btn-sm btn-danger" type="submit">Sil</button>
+              </form>
+            </td>
+          </tr>
+        <% }) %>
+      </tbody>
+    </table>
+    <h3 style="text-align:right;margin-top:16px;">Ümumi: <%= total.toFixed(2) %> ₼</h3>
+
+    <div class="form-card" style="margin-top:30px;">
+      <h1>Sifarişi tamamla</h1>
+      <form action="/sifaris" method="post">
+        <div class="form-group"><label>Ad, Soyad</label><input type="text" name="name" required></div>
+        <div class="form-group"><label>Telefon</label><input type="text" name="phone" required placeholder="+994 __ ___ __ __"></div>
+        <div class="form-group"><label>Çatdırılma ünvanı</label><textarea name="address" rows="3" required></textarea></div>
+        <button class="btn" type="submit" style="width:100%;">Sifarişi təsdiqlə</button>
+      </form>
+    </div>
+  <% } %>
+</div>

@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="az">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title><%= title %> | Admin</title>
+  <link rel="stylesheet" href="/public/css/style.css">
+</head>
+<body>
+  <div class="admin-wrap">
+    <aside class="admin-sidebar">
+      <div class="brand">SaaS Home</div>
+      <a href="/admin">📊 Dashboard</a>
+      <a href="/admin/mehsullar">📦 Məhsullar</a>
+      <a href="/admin/kateqoriyalar">🗂️ Kateqoriyalar</a>
+      <a href="/admin/sifarisler">🧾 Sifarişlər</a>
+      <a href="/admin/musteriler">👥 Müştərilər</a>
+      <a href="/" target="_blank">🔗 Saytı gör</a>
+      <form action="/admin/logout" method="post" style="margin-top:20px;">
+        <button class="btn btn-sm btn-outline" style="width:calc(100% - 40px);margin-left:20px;" type="submit">Çıxış</button>
+      </form>
+    </aside>
+    <main class="admin-main">
+      <%- body %>
+    </main>
+  </div>
+</body>
+</html>

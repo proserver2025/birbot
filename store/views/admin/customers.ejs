@@ -1,0 +1,16 @@
+<div class="admin-topbar"><h1>Müştərilər</h1></div>
+<div class="admin-card">
+  <table class="data-table">
+    <thead><tr><th>Ad</th><th>Email</th><th>Telefon</th><th>Qeydiyyat tarixi</th></tr></thead>
+    <tbody>
+      <% customers.forEach(function(c) { %>
+        <tr>
+          <td><%= c.full_name %></td>
+          <td><%= c.email %></td>
+          <td><%= c.phone || '—' %></td>
+          <td><%= c.created_at %></td>
+        </tr>
+      <% }) %>
+    </tbody>
+  </table>
+</div>

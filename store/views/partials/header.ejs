@@ -1,0 +1,46 @@
+<header class="site-header">
+  <div class="topbar">
+    <div class="container">
+      <div>
+        <a href="tel:<%= brand.phoneHref %>">📞 <%= brand.phone %></a>
+        <a href="mailto:<%= brand.email %>">✉️ <%= brand.email %></a>
+      </div>
+      <div class="social-links">
+        <a href="<%= brand.telegram %>" target="_blank" rel="noopener">Telegram</a>
+        <a href="<%= brand.instagram %>" target="_blank" rel="noopener">Instagram</a>
+        <a href="<%= brand.facebook %>" target="_blank" rel="noopener">Facebook</a>
+        <a href="<%= brand.tiktok %>" target="_blank" rel="noopener">TikTok</a>
+        <a href="<%= brand.youtube %>" target="_blank" rel="noopener">YouTube</a>
+      </div>
+    </div>
+  </div>
+  <nav class="main-nav">
+    <div class="container">
+      <a href="/" class="logo">SaaS<span>Home</span></a>
+      <form class="search-form" action="/mehsullar" method="get">
+        <input type="text" name="q" placeholder="Məhsul axtar...">
+        <button type="submit">Axtar</button>
+      </form>
+      <div class="nav-actions">
+        <% if (typeof customer !== 'undefined' && customer) { %>
+          <a href="/hesabim">👤 <%= customer.full_name.split(' ')[0] %></a>
+          <form action="/cixis" method="post" style="display:inline"><button class="btn btn-sm btn-outline" type="submit">Çıxış</button></form>
+        <% } else { %>
+          <a href="/giris">Giriş</a>
+          <a href="/qeydiyyat">Qeydiyyat</a>
+        <% } %>
+        <a href="/sebet">🛒 Səbət <% if (typeof cartCount !== 'undefined' && cartCount > 0) { %><span class="cart-badge"><%= cartCount %></span><% } %></a>
+      </div>
+    </div>
+  </nav>
+  <div class="category-bar">
+    <div class="container">
+      <a href="/mehsullar">Bütün məhsullar</a>
+      <% if (typeof categories !== 'undefined') { %>
+        <% categories.forEach(function(c) { %>
+          <a href="/kateqoriya/<%= c.slug %>"><%= c.name %></a>
+        <% }) %>
+      <% } %>
+    </div>
+  </div>
+</header>

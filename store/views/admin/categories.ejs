@@ -1,0 +1,25 @@
+<div class="admin-topbar"><h1>Kateqoriyalar</h1></div>
+<div class="admin-card" style="max-width:500px;">
+  <form action="/admin/kateqoriyalar/yeni" method="post" style="display:flex;gap:10px;">
+    <input type="text" name="name" placeholder="Yeni kateqoriya adı" required style="flex:1;padding:10px;border:1px solid var(--border);border-radius:6px;">
+    <button class="btn" type="submit">Əlavə et</button>
+  </form>
+</div>
+<div class="admin-card">
+  <table class="data-table">
+    <thead><tr><th>Ad</th><th>Slug</th><th></th></tr></thead>
+    <tbody>
+      <% categories.forEach(function(c) { %>
+        <tr>
+          <td><%= c.name %></td>
+          <td><%= c.slug %></td>
+          <td>
+            <form action="/admin/kateqoriyalar/<%= c.id %>/sil" method="post" onsubmit="return confirm('Silinsin?');">
+              <button class="btn btn-sm btn-danger" type="submit">Sil</button>
+            </form>
+          </td>
+        </tr>
+      <% }) %>
+    </tbody>
+  </table>
+</div>

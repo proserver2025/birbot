@@ -1,0 +1,21 @@
+<div class="section">
+  <div class="section-title"><h2>Hesabım</h2></div>
+  <h3>Sifariş tarixçəm</h3>
+  <% if (!orders.length) { %>
+    <p>Hələ sifarişiniz yoxdur.</p>
+  <% } else { %>
+    <table class="data-table">
+      <thead><tr><th>№</th><th>Tarix</th><th>Məbləğ</th><th>Status</th></tr></thead>
+      <tbody>
+        <% orders.forEach(function(o) { %>
+          <tr>
+            <td>#<%= o.id %></td>
+            <td><%= o.created_at %></td>
+            <td><%= o.total.toFixed(2) %> ₼</td>
+            <td><span class="status-tag status-<%= o.status %>"><%= o.status %></span></td>
+          </tr>
+        <% }) %>
+      </tbody>
+    </table>
+  <% } %>
+</div>

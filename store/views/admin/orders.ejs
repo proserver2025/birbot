@@ -1,0 +1,19 @@
+<div class="admin-topbar"><h1>Sifarişlər</h1></div>
+<div class="admin-card">
+  <table class="data-table">
+    <thead><tr><th>№</th><th>Müştəri</th><th>Telefon</th><th>Məbləğ</th><th>Status</th><th>Tarix</th><th></th></tr></thead>
+    <tbody>
+      <% orders.forEach(function(o) { %>
+        <tr>
+          <td>#<%= o.id %></td>
+          <td><%= o.customer_name %></td>
+          <td><%= o.customer_phone %></td>
+          <td><%= o.total.toFixed(2) %> ₼</td>
+          <td><span class="status-tag status-<%= o.status %>"><%= o.status %></span></td>
+          <td><%= o.created_at %></td>
+          <td><a class="btn btn-sm btn-outline" href="/admin/sifarisler/<%= o.id %>">Bax</a></td>
+        </tr>
+      <% }) %>
+    </tbody>
+  </table>
+</div>

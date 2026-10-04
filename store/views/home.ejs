@@ -1,0 +1,30 @@
+<div class="hero" style="margin-left:-16px;margin-right:-16px;border-radius:12px;padding-left:40px;padding-right:40px;">
+  <h1>SaaS Home — Evinizə lazım olan hər şey</h1>
+  <p>Mətbəx əşyaları, elektrik məişət texnikası və daha çoxu, sərfəli qiymətlərlə.</p>
+  <a href="/mehsullar" class="btn">Məhsullara bax</a>
+</div>
+
+<section class="section">
+  <div class="section-title"><h2>Kateqoriyalar</h2></div>
+  <div class="cat-pill-grid">
+    <% categories.forEach(function(c) { %>
+      <a class="cat-pill" href="/kateqoriya/<%= c.slug %>"><%= c.name %></a>
+    <% }) %>
+  </div>
+</section>
+
+<% if (featured.length) { %>
+<section class="section">
+  <div class="section-title"><h2>Seçilmiş məhsullar</h2><a href="/mehsullar">Hamısına bax →</a></div>
+  <div class="product-grid">
+    <%- include('partials/product-card-list', { products: featured }) %>
+  </div>
+</section>
+<% } %>
+
+<section class="section">
+  <div class="section-title"><h2>Yeni əlavələr</h2><a href="/mehsullar">Hamısına bax →</a></div>
+  <div class="product-grid">
+    <%- include('partials/product-card-list', { products: latest }) %>
+  </div>
+</section>

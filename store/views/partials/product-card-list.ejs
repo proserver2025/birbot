@@ -1,0 +1,25 @@
+<% products.forEach(function(p) { %>
+  <div class="product-card">
+    <a href="/mehsul/<%= p.slug %>">
+      <div class="thumb">
+        <% if (p.image_url) { %><img src="<%= p.image_url %>" alt="<%= p.name %>"><% } else { %>Şəkil yoxdur<% } %>
+      </div>
+    </a>
+    <div class="body">
+      <h3><a href="/mehsul/<%= p.slug %>" style="color:inherit;"><%= p.name %></a></h3>
+      <div class="price-row">
+        <span class="price"><%= p.price.toFixed(2) %> ₼</span>
+        <% if (p.compare_at_price && p.compare_at_price > p.price) { %>
+          <span class="price-old"><%= p.compare_at_price.toFixed(2) %> ₼</span>
+          <span class="discount-badge">-<%= Math.round((1 - p.price / p.compare_at_price) * 100) %>%</span>
+        <% } %>
+      </div>
+      <form class="add-form" action="/sebet/elave/<%= p.id %>" method="post">
+        <input type="hidden" name="qty" value="1">
+        <button class="btn btn-sm" type="submit" <%= p.stock <= 0 ? 'disabled' : '' %>>
+          <%= p.stock > 0 ? 'Səbətə at' : 'Stokda yoxdur' %>
+        </button>
+      </form>
+    </div>
+  </div>
+<% }) %>

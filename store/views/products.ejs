@@ -1,0 +1,12 @@
+<div class="section">
+  <div class="section-title">
+    <h2><%= q ? ('Axtarış: "' + q + '"') : 'Bütün məhsullar' %></h2>
+  </div>
+  <% if (!products.length) { %>
+    <p>Heç bir məhsul tapılmadı.</p>
+  <% } else { %>
+    <div class="product-grid">
+      <%- include('partials/product-card-list', { products: products }) %>
+    </div>
+  <% } %>
+</div>

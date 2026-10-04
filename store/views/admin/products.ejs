@@ -1,0 +1,27 @@
+<div class="admin-topbar">
+  <h1>Məhsullar</h1>
+  <a class="btn" href="/admin/mehsullar/yeni">+ Yeni məhsul</a>
+</div>
+<div class="admin-card">
+  <table class="data-table">
+    <thead><tr><th>Şəkil</th><th>Ad</th><th>Kateqoriya</th><th>Qiymət</th><th>Stok</th><th>Aktiv</th><th></th></tr></thead>
+    <tbody>
+      <% products.forEach(function(p) { %>
+        <tr>
+          <td><% if (p.image_url) { %><img src="<%= p.image_url %>" style="width:50px;height:50px;object-fit:cover;border-radius:6px;"><% } else { %>—<% } %></td>
+          <td><%= p.name %></td>
+          <td><%= p.category_name || '—' %></td>
+          <td><%= p.price.toFixed(2) %> ₼</td>
+          <td><%= p.stock %></td>
+          <td><%= p.is_active ? '✅' : '❌' %></td>
+          <td style="display:flex;gap:6px;">
+            <a class="btn btn-sm btn-outline" href="/admin/mehsullar/<%= p.id %>/redakte">Redaktə</a>
+            <form action="/admin/mehsullar/<%= p.id %>/sil" method="post" onsubmit="return confirm('Silinsin?');">
+              <button class="btn btn-sm btn-danger" type="submit">Sil</button>
+            </form>
+          </td>
+        </tr>
+      <% }) %>
+    </tbody>
+  </table>
+</div>
