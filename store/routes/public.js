@@ -255,6 +255,7 @@ router.post('/giris', authLimiter, (req, res) => {
 
   const customer = db.prepare('SELECT * FROM customers WHERE email = ?').get(email);
   if (!customer) return fail('Email və ya parol yanlışdır.');
+  if (customer.is_blocked) return fail('Bu hesab bloklanıb. Suallarınız varsa bizimlə əlaqə saxlayın.');
   if (isLocked(customer)) return fail(`Çox sayda yanlış cəhd. ${LOCK_MINUTES} dəqiqə sonra yenidən sınayın.`);
   if (!customer.password_hash) return fail('Bu hesab Google ilə qeydiyyatdan keçib. "Google ilə daxil ol" düyməsini istifadə edin.');
 
@@ -275,6 +276,9 @@ router.post('/auth/google', authLimiter, async (req, res) => {
   try {
     const { email, name, googleId } = await google.verifyGoogleToken(req.body.credential);
     let customer = db.prepare('SELECT * FROM customers WHERE google_id = ? OR email = ?').get(googleId, email);
+    if (customer && customer.is_blocked) {
+      return res.render('login', { title: 'Giriş', error: 'Bu hesab bloklanıb. Suallarınız varsa bizimlə əlaqə saxlayın.', redirect, googleClientId: google.GOOGLE_CLIENT_ID });
+    }
     if (!customer) {
       const result = db
         .prepare('INSERT INTO customers (full_name, email, google_id) VALUES (?, ?, ?)')

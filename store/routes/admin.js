@@ -96,30 +96,47 @@ router.get('/mehsullar', (req, res) => {
 
 router.get('/mehsullar/yeni', (req, res) => {
   const categories = db.prepare('SELECT * FROM categories ORDER BY sort_order').all();
-  res.render('admin/product-form', { title: 'Yeni məhsul', product: null, categories, error: null, layout: 'admin/layout' });
+  const suppliers = db.prepare('SELECT * FROM suppliers WHERE is_active = 1 ORDER BY company_name').all();
+  res.render('admin/product-form', { title: 'Yeni məhsul', product: null, categories, suppliers, error: null, layout: 'admin/layout' });
 });
 
+// Resolves the form's supplier_id / new_supplier_name combo into a real
+// supplier_id, creating the supplier on the fly when a brand-new name was
+// typed — so admins never have to leave the product form for a first entry.
+function resolveSupplierId(body) {
+  if (body.supplier_id) return parseInt(body.supplier_id, 10);
+  const name = (body.new_supplier_name || '').trim();
+  if (!name) return null;
+  const existing = db.prepare('SELECT id FROM suppliers WHERE company_name = ?').get(name);
+  if (existing) return existing.id;
+  return db.prepare('INSERT INTO suppliers (company_name) VALUES (?)').run(name).lastInsertRowid;
+}
+
 router.post('/mehsullar/yeni', upload.single('image'), csrfMiddleware.afterUpload, (req, res) => {
-  const { name, description, price, compare_at_price, stock, category_id, is_active, is_featured, imported_image_url, cost_price, supplier_name } = req.body;
+  const { name, description, price, compare_at_price, stock, category_id, is_active, is_featured, imported_image_url, cost_price } = req.body;
+  const supplierId = resolveSupplierId(req.body);
 
   // Internal-only fields, but mandatory: every product must record what
   // it actually cost and who it was bought from.
-  if (!cost_price || parseFloat(cost_price) <= 0 || !supplier_name || !supplier_name.trim()) {
+  if (!cost_price || parseFloat(cost_price) <= 0 || !supplierId) {
     const categories = db.prepare('SELECT * FROM categories ORDER BY sort_order').all();
+    const suppliers = db.prepare('SELECT * FROM suppliers WHERE is_active = 1 ORDER BY company_name').all();
     return res.status(400).render('admin/product-form', {
       title: 'Yeni məhsul',
       product: { ...req.body, price: parseFloat(price) || 0 },
       categories,
-      error: 'Maya dəyəri və təchizatçı/topdançı mağaza adı mütləqdir.',
+      suppliers,
+      error: 'Maya dəyəri və təchizatçı mütləqdir.',
       layout: 'admin/layout',
     });
   }
+  const supplierName = db.prepare('SELECT company_name FROM suppliers WHERE id = ?').get(supplierId).company_name;
 
   const slug = slugify(name, { lower: true, strict: true }) + '-' + Math.floor(Math.random() * 10000);
   const image_url = req.file ? '/uploads/' + req.file.filename : (imported_image_url || null);
   db.prepare(
-    `INSERT INTO products (name, slug, description, price, compare_at_price, stock, category_id, image_url, is_active, is_featured, cost_price, supplier_name)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+    `INSERT INTO products (name, slug, description, price, compare_at_price, stock, category_id, image_url, is_active, is_featured, cost_price, supplier_name, supplier_id)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
   ).run(
     name,
     slug,
@@ -132,7 +149,8 @@ router.post('/mehsullar/yeni', upload.single('image'), csrfMiddleware.afterUploa
     is_active ? 1 : 0,
     is_featured ? 1 : 0,
     parseFloat(cost_price),
-    supplier_name.trim()
+    supplierName,
+    supplierId
   );
   res.redirect('/admin/mehsullar');
 });
@@ -141,28 +159,33 @@ router.get('/mehsullar/:id/redakte', (req, res) => {
   const product = db.prepare('SELECT * FROM products WHERE id = ?').get(req.params.id);
   if (!product) return res.redirect('/admin/mehsullar');
   const categories = db.prepare('SELECT * FROM categories ORDER BY sort_order').all();
-  res.render('admin/product-form', { title: 'Məhsulu redaktə et', product, categories, error: null, layout: 'admin/layout' });
+  const suppliers = db.prepare('SELECT * FROM suppliers WHERE is_active = 1 ORDER BY company_name').all();
+  res.render('admin/product-form', { title: 'Məhsulu redaktə et', product, categories, suppliers, error: null, layout: 'admin/layout' });
 });
 
 router.post('/mehsullar/:id/redakte', upload.single('image'), csrfMiddleware.afterUpload, (req, res) => {
-  const { name, description, price, compare_at_price, stock, category_id, is_active, is_featured, imported_image_url, cost_price, supplier_name } = req.body;
+  const { name, description, price, compare_at_price, stock, category_id, is_active, is_featured, imported_image_url, cost_price } = req.body;
   const existing = db.prepare('SELECT * FROM products WHERE id = ?').get(req.params.id);
   if (!existing) return res.redirect('/admin/mehsullar');
+  const supplierId = resolveSupplierId(req.body);
 
-  if (!cost_price || parseFloat(cost_price) <= 0 || !supplier_name || !supplier_name.trim()) {
+  if (!cost_price || parseFloat(cost_price) <= 0 || !supplierId) {
     const categories = db.prepare('SELECT * FROM categories ORDER BY sort_order').all();
+    const suppliers = db.prepare('SELECT * FROM suppliers WHERE is_active = 1 ORDER BY company_name').all();
     return res.status(400).render('admin/product-form', {
       title: 'Məhsulu redaktə et',
       product: { ...existing, ...req.body },
       categories,
-      error: 'Maya dəyəri və təchizatçı/topdançı mağaza adı mütləqdir.',
+      suppliers,
+      error: 'Maya dəyəri və təchizatçı mütləqdir.',
       layout: 'admin/layout',
     });
   }
+  const supplierName = db.prepare('SELECT company_name FROM suppliers WHERE id = ?').get(supplierId).company_name;
 
   const image_url = req.file ? '/uploads/' + req.file.filename : (imported_image_url || existing.image_url);
   db.prepare(
-    `UPDATE products SET name=?, description=?, price=?, compare_at_price=?, stock=?, category_id=?, image_url=?, is_active=?, is_featured=?, cost_price=?, supplier_name=?
+    `UPDATE products SET name=?, description=?, price=?, compare_at_price=?, stock=?, category_id=?, image_url=?, is_active=?, is_featured=?, cost_price=?, supplier_name=?, supplier_id=?
      WHERE id=?`
   ).run(
     name,
@@ -175,7 +198,8 @@ router.post('/mehsullar/:id/redakte', upload.single('image'), csrfMiddleware.aft
     is_active ? 1 : 0,
     is_featured ? 1 : 0,
     parseFloat(cost_price),
-    supplier_name.trim(),
+    supplierName,
+    supplierId,
     req.params.id
   );
   res.redirect('/admin/mehsullar');
@@ -340,10 +364,109 @@ router.post('/sifarisler/:id/status', (req, res) => {
   res.redirect('/admin/sifarisler/' + req.params.id);
 });
 
-// --- Customers ---
+// --- Customers (sifariş verənlər — full 360° profile) ---
 router.get('/musteriler', (req, res) => {
-  const customers = db.prepare('SELECT * FROM customers ORDER BY created_at DESC').all();
+  const customers = db
+    .prepare(
+      `SELECT c.*, COUNT(o.id) AS order_count, COALESCE(SUM(o.total),0) AS lifetime_spend
+       FROM customers c LEFT JOIN orders o ON o.customer_id = c.id
+       GROUP BY c.id ORDER BY c.created_at DESC`
+    )
+    .all();
   res.render('admin/customers', { title: 'Müştərilər', customers, layout: 'admin/layout' });
+});
+
+router.get('/musteriler/:id', (req, res) => {
+  const customer = db.prepare('SELECT * FROM customers WHERE id = ?').get(req.params.id);
+  if (!customer) return res.redirect('/admin/musteriler');
+  const orders = db.prepare('SELECT * FROM orders WHERE customer_id = ? ORDER BY created_at DESC').all(customer.id);
+  const lifetimeSpend = orders.reduce((s, o) => s + (o.status !== 'legv_edildi' ? o.total : 0), 0);
+  const addresses = [...new Set(orders.map((o) => o.customer_address).filter(Boolean))];
+  const asAffiliate = customer.referral_code
+    ? db
+        .prepare(
+          `SELECT COUNT(*) order_count, COALESCE(SUM(commission_amount),0) total_commission
+           FROM orders WHERE affiliate_id = ?`
+        )
+        .get(customer.id)
+    : null;
+  res.render('admin/customer-detail', { title: customer.full_name, customer, orders, lifetimeSpend, addresses, asAffiliate, layout: 'admin/layout' });
+});
+
+router.post('/musteriler/:id/blok', (req, res) => {
+  db.prepare('UPDATE customers SET is_blocked = 1 WHERE id = ?').run(req.params.id);
+  res.redirect('/admin/musteriler/' + req.params.id);
+});
+
+router.post('/musteriler/:id/blok-qaldir', (req, res) => {
+  db.prepare('UPDATE customers SET is_blocked = 0 WHERE id = ?').run(req.params.id);
+  res.redirect('/admin/musteriler/' + req.params.id);
+});
+
+router.post('/musteriler/:id/qeyd', (req, res) => {
+  db.prepare('UPDATE customers SET admin_notes = ? WHERE id = ?').run(req.body.admin_notes || '', req.params.id);
+  res.redirect('/admin/musteriler/' + req.params.id);
+});
+
+// --- Təchizatçılar / Satıcılar (suppliers — structured, ERP-ready) ---
+router.get('/saticilar', (req, res) => {
+  const suppliers = db
+    .prepare(
+      `SELECT s.*, COUNT(p.id) AS product_count FROM suppliers s
+       LEFT JOIN products p ON p.supplier_id = s.id
+       GROUP BY s.id ORDER BY s.company_name`
+    )
+    .all();
+  res.render('admin/suppliers', { title: 'Təchizatçılar', suppliers, layout: 'admin/layout' });
+});
+
+router.get('/saticilar/yeni', (req, res) => {
+  res.render('admin/supplier-form', { title: 'Yeni təchizatçı', supplier: null, layout: 'admin/layout' });
+});
+
+router.post('/saticilar/yeni', (req, res) => {
+  const { company_name, contact_person, phone, email, address, tax_id, bank_info, notes } = req.body;
+  if (!company_name || !company_name.trim()) return res.redirect('/admin/saticilar/yeni');
+  db.prepare(
+    `INSERT INTO suppliers (company_name, contact_person, phone, email, address, tax_id, bank_info, notes)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+  ).run(company_name.trim(), contact_person || null, phone || null, email || null, address || null, tax_id || null, bank_info || null, notes || null);
+  res.redirect('/admin/saticilar');
+});
+
+router.get('/saticilar/:id/redakte', (req, res) => {
+  const supplier = db.prepare('SELECT * FROM suppliers WHERE id = ?').get(req.params.id);
+  if (!supplier) return res.redirect('/admin/saticilar');
+  const products = db.prepare('SELECT id, name, price, stock FROM products WHERE supplier_id = ?').all(supplier.id);
+  res.render('admin/supplier-form', { title: 'Təchizatçını redaktə et', supplier, products, layout: 'admin/layout' });
+});
+
+router.post('/saticilar/:id/redakte', (req, res) => {
+  const { company_name, contact_person, phone, email, address, tax_id, bank_info, notes, is_active } = req.body;
+  db.prepare(
+    `UPDATE suppliers SET company_name=?, contact_person=?, phone=?, email=?, address=?, tax_id=?, bank_info=?, notes=?, is_active=? WHERE id=?`
+  ).run(
+    company_name.trim(),
+    contact_person || null,
+    phone || null,
+    email || null,
+    address || null,
+    tax_id || null,
+    bank_info || null,
+    notes || null,
+    is_active ? 1 : 0,
+    req.params.id
+  );
+  // Keep the legacy display column in sync on every product using this supplier.
+  db.prepare('UPDATE products SET supplier_name = ? WHERE supplier_id = ?').run(company_name.trim(), req.params.id);
+  res.redirect('/admin/saticilar');
+});
+
+router.post('/saticilar/:id/sil', (req, res) => {
+  const inUse = db.prepare('SELECT COUNT(*) c FROM products WHERE supplier_id = ?').get(req.params.id).c;
+  if (inUse > 0) return res.redirect('/admin/saticilar'); // refuse — products still reference it
+  db.prepare('DELETE FROM suppliers WHERE id = ?').run(req.params.id);
+  res.redirect('/admin/saticilar');
 });
 
 // --- Çatdırılma zonaları ---

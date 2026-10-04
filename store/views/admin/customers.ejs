@@ -1,14 +1,18 @@
 <div class="admin-topbar"><h1>Müştərilər</h1></div>
 <div class="admin-card">
   <table class="data-table">
-    <thead><tr><th>Ad</th><th>Email</th><th>Telefon</th><th>Qeydiyyat tarixi</th></tr></thead>
+    <thead><tr><th>Ad</th><th>Email</th><th>Telefon</th><th>Sifariş sayı</th><th>Cəmi xərcləyib</th><th>Status</th><th>Qeydiyyat tarixi</th><th></th></tr></thead>
     <tbody>
       <% customers.forEach(function(c) { %>
         <tr>
           <td><%= c.full_name %></td>
           <td><%= c.email %></td>
           <td><%= c.phone || '—' %></td>
+          <td><%= c.order_count %></td>
+          <td><%= c.lifetime_spend.toFixed(2) %> ₼</td>
+          <td><% if (c.is_blocked) { %><span class="status-tag status-legv_edildi">bloklanıb</span><% } else { %><span class="status-tag status-tamamlandi">aktiv</span><% } %></td>
           <td><%= c.created_at %></td>
+          <td><a class="btn btn-sm btn-outline" href="/admin/musteriler/<%= c.id %>">Profilə bax</a></td>
         </tr>
       <% }) %>
     </tbody>

@@ -36,6 +36,9 @@ const migrations = [
   "ALTER TABLE orders ADD COLUMN bonus_used REAL DEFAULT 0",
   "ALTER TABLE products ADD COLUMN cost_price REAL NOT NULL DEFAULT 0",
   "ALTER TABLE products ADD COLUMN supplier_name TEXT NOT NULL DEFAULT ''",
+  "ALTER TABLE products ADD COLUMN supplier_id INTEGER",
+  "ALTER TABLE customers ADD COLUMN is_blocked INTEGER DEFAULT 0",
+  "ALTER TABLE customers ADD COLUMN admin_notes TEXT",
 ];
 for (const sql of migrations) {
   try { db.exec(sql); } catch (e) { /* column already exists */ }
@@ -44,6 +47,23 @@ try {
   db.exec('CREATE UNIQUE INDEX IF NOT EXISTS idx_customers_google_id ON customers(google_id) WHERE google_id IS NOT NULL');
   db.exec('CREATE UNIQUE INDEX IF NOT EXISTS idx_customers_referral_code ON customers(referral_code) WHERE referral_code IS NOT NULL');
 } catch (e) { /* ignore */ }
+
+// One-time backfill: promote any legacy free-text supplier_name into a
+// real row in `suppliers` and link the product to it, so every supplier
+// becomes a manageable entity instead of a loose string.
+const unlinked = db
+  .prepare("SELECT DISTINCT supplier_name FROM products WHERE supplier_id IS NULL AND TRIM(supplier_name) != ''")
+  .all();
+if (unlinked.length) {
+  const findSupplier = db.prepare('SELECT id FROM suppliers WHERE company_name = ?');
+  const insertSupplier = db.prepare('INSERT INTO suppliers (company_name) VALUES (?)');
+  const linkProducts = db.prepare('UPDATE products SET supplier_id = ? WHERE supplier_name = ? AND supplier_id IS NULL');
+  for (const row of unlinked) {
+    const existing = findSupplier.get(row.supplier_name);
+    const supplierId = existing ? existing.id : insertSupplier.run(row.supplier_name).lastInsertRowid;
+    linkProducts.run(supplierId, row.supplier_name);
+  }
+}
 
 // Default tunables — admin can change these later from /admin/ayarlar.
 const defaultSettings = {

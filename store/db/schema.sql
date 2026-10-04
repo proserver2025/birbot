@@ -21,6 +21,25 @@ CREATE TABLE IF NOT EXISTS customers (
   referral_code TEXT UNIQUE,
   affiliate_balance REAL DEFAULT 0,
   bonus_balance REAL DEFAULT 0,
+  is_blocked INTEGER DEFAULT 0,
+  admin_notes TEXT,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Structured supplier/vendor registry — like a marketplace's seller panel
+-- (Trendyol/Umico-style), so this is ready to feed into an ERP later:
+-- full contact + tax/bank details, not just a free-text name.
+CREATE TABLE IF NOT EXISTS suppliers (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  company_name TEXT NOT NULL,
+  contact_person TEXT,
+  phone TEXT,
+  email TEXT,
+  address TEXT,
+  tax_id TEXT, -- VÖEN
+  bank_info TEXT,
+  notes TEXT,
+  is_active INTEGER DEFAULT 1,
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -46,9 +65,11 @@ CREATE TABLE IF NOT EXISTS products (
   -- Internal-only, never shown to customers: cost price and where it was
   -- bought, so margin (price - cost_price) can be tracked per product.
   cost_price REAL NOT NULL DEFAULT 0,
-  supplier_name TEXT NOT NULL DEFAULT '',
+  supplier_name TEXT NOT NULL DEFAULT '', -- kept for display/legacy; supplier_id is the real link now
+  supplier_id INTEGER,
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-  FOREIGN KEY (category_id) REFERENCES categories(id)
+  FOREIGN KEY (category_id) REFERENCES categories(id),
+  FOREIGN KEY (supplier_id) REFERENCES suppliers(id)
 );
 
 CREATE TABLE IF NOT EXISTS orders (

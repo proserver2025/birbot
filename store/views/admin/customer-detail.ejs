@@ -1,0 +1,68 @@
+<div class="admin-topbar">
+  <h1><%= customer.full_name %> <% if (customer.is_blocked) { %><span class="status-tag status-legv_edildi" style="font-size:12px;">bloklanıb</span><% } %></h1>
+  <a class="btn btn-sm btn-outline" href="/admin/musteriler">← Müştərilərə qayıt</a>
+</div>
+
+<div class="stat-cards">
+  <div class="stat-card"><div class="num"><%= orders.length %></div><div class="label">Sifariş sayı</div></div>
+  <div class="stat-card"><div class="num"><%= lifetimeSpend.toFixed(2) %> ₼</div><div class="label">Cəmi xərcləyib</div></div>
+  <div class="stat-card"><div class="num"><%= customer.bonus_balance.toFixed(2) %> ₼</div><div class="label">Bonus balansı</div></div>
+  <% if (asAffiliate) { %>
+  <div class="stat-card"><div class="num"><%= asAffiliate.total_commission.toFixed(2) %> ₼</div><div class="label">Tərəfdaş komissiyası (<%= asAffiliate.order_count %> referans)</div></div>
+  <% } %>
+</div>
+
+<div class="admin-card" style="max-width:600px;">
+  <h3>Əlaqə məlumatları</h3>
+  <p><strong>Email:</strong> <%= customer.email %></p>
+  <p><strong>Telefon:</strong> <%= customer.phone || '—' %></p>
+  <p><strong>Qeydiyyat üsulu:</strong> <%= customer.google_id ? 'Google' : 'Email/parol' %></p>
+  <p><strong>Qeydiyyat tarixi:</strong> <%= customer.created_at %></p>
+  <% if (customer.referral_code) { %><p><strong>Referral kodu:</strong> <code><%= customer.referral_code %></code></p><% } %>
+  <% if (addresses.length) { %>
+    <p><strong>İstifadə etdiyi ünvanlar:</strong></p>
+    <ul style="margin:4px 0;padding-left:20px;font-size:13.5px;color:var(--muted);">
+      <% addresses.forEach(function(a) { %><li><%= a %></li><% }) %>
+    </ul>
+  <% } %>
+
+  <div style="display:flex;gap:10px;margin-top:14px;">
+    <% if (customer.is_blocked) { %>
+      <form action="/admin/musteriler/<%= customer.id %>/blok-qaldir" method="post"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><button class="btn btn-sm" type="submit">Blokdan çıxar</button></form>
+    <% } else { %>
+      <form action="/admin/musteriler/<%= customer.id %>/blok" method="post" onsubmit="return confirm('Bu müştəri bloklansın?');"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><button class="btn btn-sm btn-danger" type="submit">Müştərini blokla</button></form>
+    <% } %>
+  </div>
+</div>
+
+<div class="admin-card" style="max-width:600px;">
+  <h3>Admin qeydi</h3>
+  <form action="/admin/musteriler/<%= customer.id %>/qeyd" method="post">
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+    <textarea name="admin_notes" rows="3" placeholder="Bu müştəri haqqında daxili qeyd..."><%= customer.admin_notes || '' %></textarea>
+    <button class="btn btn-sm" type="submit" style="margin-top:8px;">Saxla</button>
+  </form>
+</div>
+
+<div class="admin-card">
+  <h3>Sifariş tarixçəsi</h3>
+  <% if (!orders.length) { %>
+    <p style="color:var(--muted);">Hələ sifarişi yoxdur.</p>
+  <% } else { %>
+    <table class="data-table">
+      <thead><tr><th>№</th><th>Tarix</th><th>Məhsul</th><th>Yol</th><th>Ümumi</th><th>Status</th></tr></thead>
+      <tbody>
+        <% orders.forEach(function(o) { %>
+          <tr>
+            <td><a href="/admin/sifarisler/<%= o.id %>">#<%= o.id %></a></td>
+            <td><%= o.created_at %></td>
+            <td><%= o.subtotal.toFixed(2) %> ₼</td>
+            <td><%= o.shipping_fee.toFixed(2) %> ₼</td>
+            <td><%= o.total.toFixed(2) %> ₼</td>
+            <td><span class="status-tag status-<%= o.status %>"><%= o.status %></span></td>
+          </tr>
+        <% }) %>
+      </tbody>
+    </table>
+  <% } %>
+</div>

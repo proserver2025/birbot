@@ -1,0 +1,35 @@
+<div class="admin-topbar">
+  <h1>Təchizatçılar</h1>
+  <a class="btn" href="/admin/saticilar/yeni">+ Yeni təchizatçı</a>
+</div>
+<p style="color:var(--muted);max-width:60ch;margin-top:-10px;">
+  Struktur halında saxlanılır (ad, əlaqə, VÖEN, bank) ki, gələcəkdə ERP-yə bağlananda hazır olsun.
+</p>
+
+<div class="admin-card">
+  <table class="data-table">
+    <thead><tr><th>Şirkət</th><th>Əlaqə şəxsi</th><th>Telefon</th><th>VÖEN</th><th>Məhsul sayı</th><th>Aktiv</th><th></th></tr></thead>
+    <tbody>
+      <% suppliers.forEach(function(s) { %>
+        <tr>
+          <td><%= s.company_name %></td>
+          <td><%= s.contact_person || '—' %></td>
+          <td><%= s.phone || '—' %></td>
+          <td><%= s.tax_id || '—' %></td>
+          <td><%= s.product_count %></td>
+          <td><%= s.is_active ? '✅' : '❌' %></td>
+          <td style="display:flex;gap:6px;">
+            <a class="btn btn-sm btn-outline" href="/admin/saticilar/<%= s.id %>/redakte">Redaktə</a>
+            <% if (s.product_count === 0) { %>
+              <form action="/admin/saticilar/<%= s.id %>/sil" method="post" onsubmit="return confirm('Silinsin?');">
+                <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                <button class="btn btn-sm btn-danger" type="submit">Sil</button>
+              </form>
+            <% } %>
+          </td>
+        </tr>
+      <% }) %>
+      <% if (!suppliers.length) { %><tr><td colspan="7" style="color:var(--muted);">Hələ təchizatçı yoxdur.</td></tr><% } %>
+    </tbody>
+  </table>
+</div>
