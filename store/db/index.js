@@ -29,6 +29,11 @@ const migrations = [
   "ALTER TABLE orders ADD COLUMN commission_amount REAL DEFAULT 0",
   "ALTER TABLE orders ADD COLUMN commission_status TEXT DEFAULT 'none'",
   "ALTER TABLE orders ADD COLUMN commission_eligible_at DATETIME",
+  "ALTER TABLE customers ADD COLUMN bonus_balance REAL DEFAULT 0",
+  "ALTER TABLE orders ADD COLUMN bonus_earned REAL DEFAULT 0",
+  "ALTER TABLE orders ADD COLUMN bonus_status TEXT DEFAULT 'none'",
+  "ALTER TABLE orders ADD COLUMN bonus_eligible_at DATETIME",
+  "ALTER TABLE orders ADD COLUMN bonus_used REAL DEFAULT 0",
 ];
 for (const sql of migrations) {
   try { db.exec(sql); } catch (e) { /* column already exists */ }
@@ -46,6 +51,8 @@ const defaultSettings = {
   warranty_enabled: '1',
   warranty_price: '5',
   warranty_terms: 'Zəmanət talonu seçildikdə məhsula 12 ay əlavə təmir zəmanəti verilir. Şərtlər admin tərəfindən sonradan dəqiqləşdiriləcək.',
+  bonus_cashback_percent: '5',
+  bonus_hold_days: '15',
 };
 const insertSetting = db.prepare('INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)');
 for (const [k, v] of Object.entries(defaultSettings)) insertSetting.run(k, v);

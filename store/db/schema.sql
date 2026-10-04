@@ -20,6 +20,7 @@ CREATE TABLE IF NOT EXISTS customers (
   locked_until DATETIME,
   referral_code TEXT UNIQUE,
   affiliate_balance REAL DEFAULT 0,
+  bonus_balance REAL DEFAULT 0,
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -63,6 +64,10 @@ CREATE TABLE IF NOT EXISTS orders (
   commission_amount REAL DEFAULT 0,
   commission_status TEXT DEFAULT 'none',
   commission_eligible_at DATETIME,
+  bonus_earned REAL DEFAULT 0,
+  bonus_status TEXT DEFAULT 'none',
+  bonus_eligible_at DATETIME,
+  bonus_used REAL DEFAULT 0,
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (customer_id) REFERENCES customers(id),
   FOREIGN KEY (affiliate_id) REFERENCES customers(id),

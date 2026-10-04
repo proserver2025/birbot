@@ -12,6 +12,7 @@ const db = require('../db');
 const csrfMiddleware = require('../middleware/csrf');
 const settings = require('../config/settings');
 const affiliates = require('../lib/affiliates');
+const bonus = require('../lib/bonus');
 const { requireAdmin } = require('../middleware/auth');
 const { isLocked, registerFailure, resetFailures, LOCK_MINUTES } = require('../middleware/loginGuard');
 
@@ -65,6 +66,7 @@ router.use(requireAdmin);
 // --- Dashboard ---
 router.get('/', (req, res) => {
   affiliates.settleEligibleCommissions();
+  bonus.settleEligibleBonus();
   const stats = {
     products: db.prepare('SELECT COUNT(*) c FROM products').get().c,
     orders: db.prepare('SELECT COUNT(*) c FROM orders').get().c,
@@ -401,6 +403,8 @@ router.post('/ayarlar', (req, res) => {
     'affiliate_commission_percent',
     'affiliate_hold_days',
     'affiliate_payout_threshold',
+    'bonus_cashback_percent',
+    'bonus_hold_days',
     'warranty_price',
     'warranty_terms',
   ];

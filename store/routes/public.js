@@ -7,6 +7,7 @@ const google = require('../config/google');
 const settings = require('../config/settings');
 const shipping = require('../lib/shipping');
 const affiliates = require('../lib/affiliates');
+const bonus = require('../lib/bonus');
 const { requireCustomer } = require('../middleware/auth');
 const { isLocked, registerFailure, resetFailures, LOCK_MINUTES } = require('../middleware/loginGuard');
 
@@ -25,7 +26,7 @@ const authLimiter = rateLimit({
 router.use((req, res, next) => {
   res.locals.brand = brand;
   res.locals.customer = req.session.customerId
-    ? db.prepare('SELECT id, full_name, email FROM customers WHERE id = ?').get(req.session.customerId)
+    ? db.prepare('SELECT id, full_name, email, phone, bonus_balance FROM customers WHERE id = ?').get(req.session.customerId)
     : null;
   res.locals.cartCount = (req.session.cart || []).reduce((sum, i) => sum + i.qty, 0);
   next();
@@ -123,13 +124,31 @@ router.get('/sebet', (req, res) => {
   const warrantyEnabled = settings.get('warranty_enabled', '1') === '1';
   const warrantyPrice = settings.getNumber('warranty_price', 0);
   const warrantyTerms = settings.get('warranty_terms', '');
-  res.render('cart', { cart, subtotal, zones, warrantyEnabled, warrantyPrice, warrantyTerms, title: 'Səbətim' });
+  const bonusSummary = req.session.customerId ? bonus.getBonusSummary(req.session.customerId) : null;
+  res.render('cart', {
+    cart,
+    subtotal,
+    zones,
+    warrantyEnabled,
+    warrantyPrice,
+    warrantyTerms,
+    bonusSummary,
+    needsPhone: res.locals.customer && !res.locals.customer.phone,
+    title: 'Səbətim',
+  });
 });
 
-router.post('/sifaris', (req, res) => {
+// Checkout requires an account — "qeydiyyatla olsun" — plus a phone
+// number on file (mandatory even for Google sign-ups).
+router.post('/sifaris', requireCustomer, (req, res) => {
   const cart = req.session.cart || [];
   if (cart.length === 0) return res.redirect('/sebet');
-  const { name, phone, address, shipping_zone_id, warranty } = req.body;
+
+  const customer = db.prepare('SELECT * FROM customers WHERE id = ?').get(req.session.customerId);
+  if (!customer.phone) return res.redirect('/telefon-elave-et?redirect=' + encodeURIComponent('/sebet'));
+
+  const { name, address, shipping_zone_id, warranty, bonus_use } = req.body;
+  const phone = customer.phone;
 
   const subtotal = cart.reduce((sum, i) => sum + i.price * i.qty, 0);
   // Shipping is one flat fee for the whole order (all items go out
@@ -141,15 +160,20 @@ router.post('/sifaris', (req, res) => {
   // Shipping + warranty are the customer's own cost, outside our taxable
   // revenue — kept in separate columns so any future receipt only
   // reports `subtotal` as the sale amount.
-  const total = subtotal + shippingFee + warrantyFee;
+  const grossTotal = subtotal + shippingFee + warrantyFee;
+
+  // Bonus spend is clamped server-side to the customer's real balance —
+  // never trust the amount the form sent.
+  const bonusUsed = bonus.spendBonus(req.session.customerId, parseFloat(bonus_use) || 0, grossTotal);
+  const total = Math.round((grossTotal - bonusUsed) * 100) / 100;
 
   const insertOrder = db.prepare(
-    `INSERT INTO orders (customer_id, customer_name, customer_phone, customer_address, subtotal, shipping_zone_id, shipping_fee, warranty_selected, warranty_fee, total)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+    `INSERT INTO orders (customer_id, customer_name, customer_phone, customer_address, subtotal, shipping_zone_id, shipping_fee, warranty_selected, warranty_fee, bonus_used, total)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
   );
   const result = insertOrder.run(
-    req.session.customerId || null,
-    name,
+    req.session.customerId,
+    name || customer.full_name,
     phone,
     address,
     subtotal,
@@ -157,6 +181,7 @@ router.post('/sifaris', (req, res) => {
     shippingFee,
     warrantySelected ? 1 : 0,
     warrantyFee,
+    bonusUsed,
     total
   );
   const insertItem = db.prepare(
@@ -167,6 +192,10 @@ router.post('/sifaris', (req, res) => {
     insertItem.run(result.lastInsertRowid, item.id, item.name, item.price, item.qty);
     decStock.run(item.qty, item.id);
   });
+
+  // This purchase earns the buyer cashback (separate from any referral
+  // commission below), on hold for the same return-window period.
+  bonus.earnBonus(result.lastInsertRowid, req.session.customerId, subtotal);
 
   // Attribute the order to a referring partner, if any — never to oneself.
   if (req.session.refCode) {
@@ -182,6 +211,7 @@ router.post('/sifaris', (req, res) => {
     subtotal,
     shippingFee,
     warrantyFee,
+    bonusUsed,
     total,
     title: 'Sifariş qəbul olundu',
   });
@@ -194,20 +224,21 @@ router.get('/qeydiyyat', (req, res) =>
 
 router.post('/qeydiyyat', authLimiter, (req, res) => {
   const { full_name, email, phone, password } = req.body;
-  if (!full_name || !email || !password) {
-    return res.render('register', { title: 'Qeydiyyat', error: 'Bütün vacib sahələri doldurun.', googleClientId: google.GOOGLE_CLIENT_ID });
-  }
-  if (password.length < 6) {
-    return res.render('register', { title: 'Qeydiyyat', error: 'Parol ən azı 6 simvol olmalıdır.', googleClientId: google.GOOGLE_CLIENT_ID });
-  }
+  const fail = (msg) => res.render('register', { title: 'Qeydiyyat', error: msg, googleClientId: google.GOOGLE_CLIENT_ID });
+
+  if (!full_name || !email || !password) return fail('Bütün vacib sahələri doldurun.');
+  // Phone is mandatory (courier needs it), kept to a loose but real check
+  // so it stays easy to fill in on mobile — no strict format enforced.
+  const cleanPhone = (phone || '').replace(/[^\d+]/g, '');
+  if (cleanPhone.length < 9) return fail('Düzgün telefon nömrəsi daxil edin (kuryer sizinlə əlaqə saxlamaq üçün lazımdır).');
+  if (password.length < 6) return fail('Parol ən azı 6 simvol olmalıdır.');
   const existing = db.prepare('SELECT id FROM customers WHERE email = ?').get(email);
-  if (existing) {
-    return res.render('register', { title: 'Qeydiyyat', error: 'Bu email ilə artıq hesab var.', googleClientId: google.GOOGLE_CLIENT_ID });
-  }
+  if (existing) return fail('Bu email ilə artıq hesab var.');
+
   const hash = bcrypt.hashSync(password, 10);
   const result = db
     .prepare('INSERT INTO customers (full_name, email, phone, password_hash) VALUES (?, ?, ?, ?)')
-    .run(full_name, email, phone || null, hash);
+    .run(full_name, email, cleanPhone, hash);
   req.session.customerId = result.lastInsertRowid;
   res.redirect('/hesabim');
 });
@@ -248,15 +279,37 @@ router.post('/auth/google', authLimiter, async (req, res) => {
       const result = db
         .prepare('INSERT INTO customers (full_name, email, google_id) VALUES (?, ?, ?)')
         .run(name, email, googleId);
-      customer = { id: result.lastInsertRowid };
+      customer = { id: result.lastInsertRowid, phone: null };
     } else if (!customer.google_id) {
       db.prepare('UPDATE customers SET google_id = ? WHERE id = ?').run(googleId, customer.id);
     }
     req.session.customerId = customer.id;
+    // Google doesn't hand us a phone number, and courier delivery needs
+    // one — collect it once before letting the account go further.
+    if (!customer.phone) {
+      return res.redirect('/telefon-elave-et?redirect=' + encodeURIComponent(redirect));
+    }
     res.redirect(redirect);
   } catch (err) {
     res.render('login', { title: 'Giriş', error: 'Google ilə giriş alınmadı: ' + err.message, redirect, googleClientId: google.GOOGLE_CLIENT_ID });
   }
+});
+
+// One-time step for Google sign-ups (and any legacy account) missing a
+// phone number — required before checkout, kept to a single field.
+router.get('/telefon-elave-et', requireCustomer, (req, res) => {
+  const customer = db.prepare('SELECT phone FROM customers WHERE id = ?').get(req.session.customerId);
+  if (customer.phone) return res.redirect(req.query.redirect || '/');
+  res.render('add-phone', { title: 'Telefon nömrəsi', error: null, redirect: req.query.redirect || '/' });
+});
+
+router.post('/telefon-elave-et', requireCustomer, (req, res) => {
+  const cleanPhone = (req.body.phone || '').replace(/[^\d+]/g, '');
+  if (cleanPhone.length < 9) {
+    return res.render('add-phone', { title: 'Telefon nömrəsi', error: 'Düzgün telefon nömrəsi daxil edin.', redirect: req.body.redirect || '/' });
+  }
+  db.prepare('UPDATE customers SET phone = ? WHERE id = ?').run(cleanPhone, req.session.customerId);
+  res.redirect(req.body.redirect || '/');
 });
 
 router.post('/cixis', (req, res) => {
@@ -268,7 +321,8 @@ router.get('/hesabim', requireCustomer, (req, res) => {
   const orders = db
     .prepare('SELECT * FROM orders WHERE customer_id = ? ORDER BY created_at DESC')
     .all(req.session.customerId);
-  res.render('account', { orders, title: 'Hesabım' });
+  const bonusSummary = bonus.getBonusSummary(req.session.customerId);
+  res.render('account', { orders, bonusSummary, title: 'Hesabım' });
 });
 
 // --- Tərəfdaşlıq (həvalə / referral) proqramı ---

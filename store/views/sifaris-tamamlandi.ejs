@@ -7,8 +7,12 @@
     <% if (warrantyFee > 0) { %>
     <div style="display:flex;justify-content:space-between;"><span>Zəmanət</span><span><%= warrantyFee.toFixed(2) %> ₼</span></div>
     <% } %>
-    <div style="display:flex;justify-content:space-between;font-weight:700;margin-top:8px;"><span>Ümumi</span><span><%= total.toFixed(2) %> ₼</span></div>
+    <% if (bonusUsed > 0) { %>
+    <div style="display:flex;justify-content:space-between;color:var(--success);"><span>Bonus endirimi</span><span>-<%= bonusUsed.toFixed(2) %> ₼</span></div>
+    <% } %>
+    <div style="display:flex;justify-content:space-between;font-weight:700;margin-top:8px;"><span>Ödənilib</span><span><%= total.toFixed(2) %> ₼</span></div>
   </div>
+  <p style="font-size:13.5px;color:var(--muted);">Bu sifarişə görə bonus balansınıza kəşbek yazılacaq (15 gün ərzində təsdiqlənəcək).</p>
   <p>Tezliklə sizinlə əlaqə saxlanılacaq.</p>
   <a class="btn" href="/">Ana səhifəyə qayıt</a>
 </div>

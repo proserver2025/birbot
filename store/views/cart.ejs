@@ -24,12 +24,29 @@
     </table>
     <h3 style="text-align:right;margin-top:16px;">Məhsul cəmi: <%= subtotal.toFixed(2) %> ₼</h3>
 
+    <% if (!customer) { %>
+      <div class="form-card" style="max-width:460px;text-align:center;">
+        <h1>Sifariş vermək üçün qeydiyyatdan keçin</h1>
+        <p style="color:var(--muted);font-size:14px;">Qısadır — ad, email, telefon, parol. Google ilə də bir kliklə ola bilər.</p>
+        <div style="display:flex;gap:10px;margin-top:16px;">
+          <a class="btn" style="flex:1;" href="/qeydiyyat">Qeydiyyat</a>
+          <a class="btn btn-outline" style="flex:1;" href="/giris?redirect=%2Fsebet">Giriş</a>
+        </div>
+      </div>
+    <% } else if (needsPhone) { %>
+      <div class="form-card" style="max-width:460px;text-align:center;">
+        <h1>Telefon nömrənizi tamamlayın</h1>
+        <p style="color:var(--muted);font-size:14px;">Sifariş vermədən əvvəl bir dəfəlik telefon nömrənizi əlavə etməlisiniz.</p>
+        <a class="btn" href="/telefon-elave-et?redirect=%2Fsebet">Davam et</a>
+      </div>
+    <% } else { %>
+
     <div class="form-card" style="margin-top:30px;max-width:520px;">
       <h1>Sifarişi tamamla</h1>
       <form action="/sifaris" method="post" id="checkoutForm">
         <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-        <div class="form-group"><label>Ad, Soyad</label><input type="text" name="name" required></div>
-        <div class="form-group"><label>Telefon</label><input type="text" name="phone" required placeholder="+994 __ ___ __ __"></div>
+        <div class="form-group"><label>Ad, Soyad</label><input type="text" name="name" value="<%= customer.full_name %>" required></div>
+        <div class="form-group"><label>Telefon</label><input type="text" value="<%= customer.phone %>" disabled style="background:var(--surface-2);"></div>
         <div class="form-group"><label>Çatdırılma ünvanı</label><textarea name="address" rows="3" required></textarea></div>
 
         <div class="form-group">
@@ -64,13 +81,23 @@
         </div>
         <% } %>
 
+        <% if (bonusSummary && bonusSummary.balance > 0) { %>
+        <div class="form-group" style="background:var(--accent-tint,#fef3e2);padding:12px;border-radius:10px;">
+          <label style="font-weight:600;">💰 Bonus balansından istifadə et (mövcud: <%= bonusSummary.balance.toFixed(2) %> ₼)</label>
+          <input type="number" name="bonus_use" id="bonusUse" step="0.01" min="0" max="<%= bonusSummary.balance %>" value="0" oninput="recalc()" style="margin-top:6px;">
+        </div>
+        <% } %>
+
         <div style="border-top:1px solid var(--border);margin:16px 0;padding-top:12px;font-size:14px;">
           <div style="display:flex;justify-content:space-between;"><span>Məhsul cəmi</span><span id="sumSubtotal"><%= subtotal.toFixed(2) %> ₼</span></div>
           <div style="display:flex;justify-content:space-between;"><span>Çatdırılma</span><span id="sumShipping">0.00 ₼</span></div>
           <% if (warrantyEnabled) { %>
           <div style="display:flex;justify-content:space-between;"><span>Zəmanət</span><span id="sumWarranty">0.00 ₼</span></div>
           <% } %>
-          <div style="display:flex;justify-content:space-between;font-weight:700;font-size:16px;margin-top:8px;"><span>Ümumi</span><span id="sumTotal"><%= subtotal.toFixed(2) %> ₼</span></div>
+          <% if (bonusSummary && bonusSummary.balance > 0) { %>
+          <div style="display:flex;justify-content:space-between;color:var(--success);"><span>Bonus endirimi</span><span id="sumBonus">-0.00 ₼</span></div>
+          <% } %>
+          <div style="display:flex;justify-content:space-between;font-weight:700;font-size:16px;margin-top:8px;"><span>Ödəniləcək</span><span id="sumTotal"><%= subtotal.toFixed(2) %> ₼</span></div>
         </div>
 
         <button class="btn" type="submit" style="width:100%;">Sifarişi təsdiqlə</button>
@@ -80,17 +107,26 @@
     <script>
       const SUBTOTAL = <%= subtotal %>;
       const WARRANTY_PRICE = <%= warrantyEnabled ? warrantyPrice : 0 %>;
+      const BONUS_BALANCE = <%= bonusSummary ? bonusSummary.balance : 0 %>;
       function recalc() {
         const sel = document.getElementById('zoneSelect');
         const opt = sel.options[sel.selectedIndex];
-        const shipping = opt && opt.dataset.price ? parseFloat(opt.dataset.price) : 0;
+        const shippingFee = opt && opt.dataset.price ? parseFloat(opt.dataset.price) : 0;
         const wCheck = document.getElementById('warrantyCheck');
         const warranty = wCheck && wCheck.checked ? WARRANTY_PRICE : 0;
-        document.getElementById('sumShipping').textContent = shipping.toFixed(2) + ' ₼';
+        const bonusInput = document.getElementById('bonusUse');
+        let bonusUse = bonusInput ? Math.max(0, Math.min(parseFloat(bonusInput.value) || 0, BONUS_BALANCE)) : 0;
+        const gross = SUBTOTAL + shippingFee + warranty;
+        bonusUse = Math.min(bonusUse, gross);
+
+        document.getElementById('sumShipping').textContent = shippingFee.toFixed(2) + ' ₼';
         const wEl = document.getElementById('sumWarranty');
         if (wEl) wEl.textContent = warranty.toFixed(2) + ' ₼';
-        document.getElementById('sumTotal').textContent = (SUBTOTAL + shipping + warranty).toFixed(2) + ' ₼';
+        const bEl = document.getElementById('sumBonus');
+        if (bEl) bEl.textContent = '-' + bonusUse.toFixed(2) + ' ₼';
+        document.getElementById('sumTotal').textContent = (gross - bonusUse).toFixed(2) + ' ₼';
       }
     </script>
+    <% } %>
   <% } %>
 </div>

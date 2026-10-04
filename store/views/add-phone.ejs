@@ -1,0 +1,11 @@
+<div class="form-card">
+  <h1>Telefon nömrəsi</h1>
+  <p style="color:var(--muted);font-size:14px;">Sifarişi çatdırmaq üçün telefon nömrəniz lazımdır — bir dəfəlik, sadəcə bunu doldurun.</p>
+  <% if (error) { %><div class="form-error"><%= error %></div><% } %>
+  <form action="/telefon-elave-et" method="post">
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+    <input type="hidden" name="redirect" value="<%= redirect %>">
+    <div class="form-group"><label>Telefon</label><input type="text" name="phone" required placeholder="+994 __ ___ __ __" autofocus></div>
+    <button class="btn" type="submit" style="width:100%;">Davam et</button>
+  </form>
+</div>
