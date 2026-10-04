@@ -27,6 +27,12 @@ router.get('/', (req, res) => {
   res.render('home', { categories, featured, latest, title: 'Ana səhifə' });
 });
 
+// About
+router.get('/haqqimizda', (req, res) => {
+  const categories = db.prepare('SELECT * FROM categories ORDER BY sort_order').all();
+  res.render('about', { categories, title: 'Haqqımızda' });
+});
+
 // Category listing
 router.get('/kateqoriya/:slug', (req, res) => {
   const category = db.prepare('SELECT * FROM categories WHERE slug = ?').get(req.params.slug);
