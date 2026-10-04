@@ -13,6 +13,7 @@ const csrfMiddleware = require('../middleware/csrf');
 const settings = require('../config/settings');
 const affiliates = require('../lib/affiliates');
 const bonus = require('../lib/bonus');
+const { autoTranslateProduct } = require('../lib/translate');
 const { requireAdmin } = require('../middleware/auth');
 const { isLocked, registerFailure, resetFailures, LOCK_MINUTES } = require('../middleware/loginGuard');
 
@@ -112,8 +113,8 @@ function resolveSupplierId(body) {
   return db.prepare('INSERT INTO suppliers (company_name) VALUES (?)').run(name).lastInsertRowid;
 }
 
-router.post('/mehsullar/yeni', upload.single('image'), csrfMiddleware.afterUpload, (req, res) => {
-  const { name, description, name_ru, name_en, description_ru, description_en, price, compare_at_price, stock, category_id, is_active, is_featured, imported_image_url, cost_price } = req.body;
+router.post('/mehsullar/yeni', upload.single('image'), csrfMiddleware.afterUpload, async (req, res) => {
+  const { name, description, price, compare_at_price, stock, category_id, is_active, is_featured, imported_image_url, cost_price } = req.body;
   const supplierId = resolveSupplierId(req.body);
 
   // Internal-only fields, but mandatory: every product must record what
@@ -131,6 +132,17 @@ router.post('/mehsullar/yeni', upload.single('image'), csrfMiddleware.afterUploa
     });
   }
   const supplierName = db.prepare('SELECT company_name FROM suppliers WHERE id = ?').get(supplierId).company_name;
+
+  // Auto-fill whichever RU/EN fields the admin left blank by machine-
+  // translating the Azerbaijani text — admin-typed translations always win.
+  const translated = await autoTranslateProduct({
+    name,
+    description,
+    name_ru: (req.body.name_ru || '').trim(),
+    name_en: (req.body.name_en || '').trim(),
+    description_ru: (req.body.description_ru || '').trim(),
+    description_en: (req.body.description_en || '').trim(),
+  });
 
   const slug = slugify(name, { lower: true, strict: true }) + '-' + Math.floor(Math.random() * 10000);
   const image_url = req.file ? '/uploads/' + req.file.filename : (imported_image_url || null);
@@ -151,10 +163,10 @@ router.post('/mehsullar/yeni', upload.single('image'), csrfMiddleware.afterUploa
     parseFloat(cost_price),
     supplierName,
     supplierId,
-    (name_ru || '').trim() || null,
-    (name_en || '').trim() || null,
-    (description_ru || '').trim() || null,
-    (description_en || '').trim() || null
+    translated.name_ru,
+    translated.name_en,
+    translated.description_ru,
+    translated.description_en
   );
   res.redirect('/admin/mehsullar');
 });
@@ -167,8 +179,8 @@ router.get('/mehsullar/:id/redakte', (req, res) => {
   res.render('admin/product-form', { title: 'Məhsulu redaktə et', product, categories, suppliers, error: null, layout: 'admin/layout' });
 });
 
-router.post('/mehsullar/:id/redakte', upload.single('image'), csrfMiddleware.afterUpload, (req, res) => {
-  const { name, description, name_ru, name_en, description_ru, description_en, price, compare_at_price, stock, category_id, is_active, is_featured, imported_image_url, cost_price } = req.body;
+router.post('/mehsullar/:id/redakte', upload.single('image'), csrfMiddleware.afterUpload, async (req, res) => {
+  const { name, description, price, compare_at_price, stock, category_id, is_active, is_featured, imported_image_url, cost_price } = req.body;
   const existing = db.prepare('SELECT * FROM products WHERE id = ?').get(req.params.id);
   if (!existing) return res.redirect('/admin/mehsullar');
   const supplierId = resolveSupplierId(req.body);
@@ -187,6 +199,18 @@ router.post('/mehsullar/:id/redakte', upload.single('image'), csrfMiddleware.aft
   }
   const supplierName = db.prepare('SELECT company_name FROM suppliers WHERE id = ?').get(supplierId).company_name;
 
+  // Same rule as creating a product: a blank RU/EN field (including one
+  // the admin just cleared, to force a re-translation) gets auto-filled
+  // from the Azerbaijani text; anything the admin typed is kept as-is.
+  const translated = await autoTranslateProduct({
+    name,
+    description,
+    name_ru: (req.body.name_ru || '').trim(),
+    name_en: (req.body.name_en || '').trim(),
+    description_ru: (req.body.description_ru || '').trim(),
+    description_en: (req.body.description_en || '').trim(),
+  });
+
   const image_url = req.file ? '/uploads/' + req.file.filename : (imported_image_url || existing.image_url);
   db.prepare(
     `UPDATE products SET name=?, description=?, price=?, compare_at_price=?, stock=?, category_id=?, image_url=?, is_active=?, is_featured=?, cost_price=?, supplier_name=?, supplier_id=?, name_ru=?, name_en=?, description_ru=?, description_en=?
@@ -204,10 +228,10 @@ router.post('/mehsullar/:id/redakte', upload.single('image'), csrfMiddleware.aft
     parseFloat(cost_price),
     supplierName,
     supplierId,
-    (name_ru || '').trim() || null,
-    (name_en || '').trim() || null,
-    (description_ru || '').trim() || null,
-    (description_en || '').trim() || null,
+    translated.name_ru,
+    translated.name_en,
+    translated.description_ru,
+    translated.description_en,
     req.params.id
   );
   res.redirect('/admin/mehsullar');
