@@ -4,6 +4,14 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title><%= title %> | Admin</title>
+  <script>
+    (function () {
+      try {
+        var t = localStorage.getItem('theme');
+        if (t === 'dark' || t === 'light') document.documentElement.setAttribute('data-theme', t);
+      } catch (e) {}
+    }());
+  </script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,500;0,9..144,600;0,9..144,700;1,9..144,500&family=Figtree:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -25,7 +33,8 @@
       <a href="/admin/tereflik">💰 Tərəfdaşlar</a>
       <a href="/admin/ayarlar">⚙️ Ayarlar</a>
       <a href="/" target="_blank">🔗 Saytı gör</a>
-      <form action="/admin/logout" method="post" style="margin-top:20px;">
+      <button type="button" class="theme-toggle" onclick="toggleTheme()" title="Dark / light">🌓 Gecə rejimi</button>
+      <form action="/admin/logout" method="post" style="margin-top:12px;">
         <input type="hidden" name="_csrf" value="<%= csrfToken %>">
         <button class="btn btn-sm btn-outline" style="width:calc(100% - 40px);margin-left:20px;" type="submit">Çıxış</button>
       </form>
@@ -34,5 +43,14 @@
       <%- body %>
     </main>
   </div>
+  <script>
+    function toggleTheme() {
+      var html = document.documentElement;
+      var current = html.getAttribute('data-theme') || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+      var next = current === 'dark' ? 'light' : 'dark';
+      html.setAttribute('data-theme', next);
+      try { localStorage.setItem('theme', next); } catch (e) {}
+    }
+  </script>
 </body>
 </html>

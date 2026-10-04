@@ -1,29 +1,29 @@
 <div class="section">
-  <div class="section-title"><h2>Hesabım</h2></div>
+  <div class="section-title"><h2><%= t('account.title') %></h2></div>
 
   <div class="stat-cards" style="max-width:700px;">
-    <div class="stat-card"><div class="num"><%= bonusSummary.balance.toFixed(2) %> ₼</div><div class="label">Bonus balansı (istifadəyə hazır)</div></div>
-    <div class="stat-card"><div class="num"><%= bonusSummary.pendingTotal.toFixed(2) %> ₼</div><div class="label">Gözləmədə (<%= bonusSummary.holdDays %> gün)</div></div>
+    <div class="stat-card"><div class="num"><%= bonusSummary.balance.toFixed(2) %> ₼</div><div class="label"><%= t('account.bonus_available') %></div></div>
+    <div class="stat-card"><div class="num"><%= bonusSummary.pendingTotal.toFixed(2) %> ₼</div><div class="label"><%= t('account.bonus_pending') %> (<%= bonusSummary.holdDays %> <%= t('account.bonus_days') %>)</div></div>
   </div>
   <p style="color:var(--muted);font-size:13.5px;max-width:60ch;">
-    Hər aldığınız məhsulun bir hissəsi bonus kimi geri qayıdır (sifarişin məhsul dəyərinin faizi), növbəti sifarişdə qiymətdən
-    çıxıla bilər. <a href="/tereflik">Tərəfdaşlıq proqramı</a> ilə isə linkinizi paylaşıb ayrıca komissiya qazana bilərsiniz.
+    <%= t('account.bonus_explain') %>
+    <a href="/tereflik"><%= t('account.partner_link') %></a> <%= t('account.partner_explain_suffix') %>
   </p>
 
-  <h3 style="margin-top:28px;">Sifariş tarixçəm</h3>
+  <h3 style="margin-top:28px;"><%= t('account.orders_title') %></h3>
   <% if (!orders.length) { %>
-    <p>Hələ sifarişiniz yoxdur.</p>
+    <p><%= t('account.no_orders') %></p>
   <% } else { %>
     <table class="data-table">
-      <thead><tr><th>№</th><th>Tarix</th><th>Məbləğ</th><th>Bonus</th><th>Status</th></tr></thead>
+      <thead><tr><th><%= t('account.col_no') %></th><th><%= t('account.col_date') %></th><th><%= t('account.col_amount') %></th><th><%= t('account.col_bonus') %></th><th><%= t('account.col_status') %></th></tr></thead>
       <tbody>
         <% orders.forEach(function(o) { %>
           <tr>
             <td><a href="/hesabim/sifaris/<%= o.id %>">#<%= o.id %></a></td>
             <td><%= o.created_at %></td>
             <td><%= o.total.toFixed(2) %> ₼</td>
-            <td><%= o.bonus_earned > 0 ? ('+' + o.bonus_earned.toFixed(2) + ' ₼ (' + o.bonus_status + ')') : '—' %></td>
-            <td><span class="status-tag status-<%= o.status %>"><%= o.status %></span></td>
+            <td><%= o.bonus_earned > 0 ? ('+' + o.bonus_earned.toFixed(2) + ' ₼ (' + t('status.' + o.bonus_status) + ')') : '—' %></td>
+            <td><span class="status-tag status-<%= o.status %>"><%= t('status.' + o.status) %></span></td>
           </tr>
         <% }) %>
       </tbody>

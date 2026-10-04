@@ -2,8 +2,8 @@
   <div class="container">
     <div class="footer-grid">
       <div>
-        <h4>SaaS Home</h4>
-        <p>Keyfiyyətli məhsullar, sürətli çatdırılma. Azərbaycanda etibarlı onlayn mağaza.</p>
+        <h4><%= t('footer.about_title') %></h4>
+        <p><%= t('footer.about_text') %></p>
         <div class="footer-social">
           <a href="<%= brand.telegram %>" target="_blank" rel="noopener" title="Telegram">✈️</a>
           <a href="<%= brand.instagram %>" target="_blank" rel="noopener" title="Instagram">📷</a>
@@ -13,21 +13,21 @@
         </div>
       </div>
       <div>
-        <h4>Əlaqə</h4>
+        <h4><%= t('footer.contact_title') %></h4>
         <p>📞 <a href="tel:<%= brand.phoneHref %>"><%= brand.phone %></a></p>
         <p>✉️ <a href="mailto:<%= brand.email %>"><%= brand.email %></a></p>
       </div>
       <div>
-        <h4>Keçidlər</h4>
-        <p><a href="/haqqimizda">Haqqımızda</a></p>
-        <p><a href="/mehsullar">Məhsullar</a></p>
-        <p><a href="/hesabim">Hesabım</a></p>
-        <p><a href="/sebet">Səbətim</a></p>
+        <h4><%= t('footer.links_title') %></h4>
+        <p><a href="/haqqimizda"><%= t('nav.about') %></a></p>
+        <p><a href="/mehsullar"><%= t('nav.products_short') %></a></p>
+        <p><a href="/hesabim"><%= t('account.title') %></a></p>
+        <p><a href="/sebet"><%= t('cart.title') %></a></p>
       </div>
     </div>
     <div class="footer-bottom">
-      &copy; <%= new Date().getFullYear() %> SaaS Home. Bütün hüquqlar qorunur. ·
-      Saytı hazırladı: <a href="https://smai.pro" target="_blank" rel="noopener" style="font-weight:700;">SMAI</a>
+      &copy; <%= new Date().getFullYear() %> SaaS Home. <%= t('footer.rights') %> ·
+      <%= t('footer.made_by') %>: <a href="https://smai.pro" target="_blank" rel="noopener" style="font-weight:700;">SMAI</a>
     </div>
   </div>
 </footer>

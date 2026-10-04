@@ -1,6 +1,6 @@
 <div class="product-detail">
   <div class="thumb-large">
-    <% if (product.image_url) { %><img src="<%= product.image_url %>" alt="<%= product.name %>"><% } else { %>Şəkil yoxdur<% } %>
+    <% if (product.image_url) { %><img src="<%= product.image_url %>" alt="<%= product.name %>"><% } else { %><%= t('products.no_image') %><% } %>
   </div>
   <div>
     <h1><%= product.name %></h1>
@@ -11,19 +11,19 @@
         <span class="discount-badge">-<%= Math.round((1 - product.price / product.compare_at_price) * 100) %>%</span>
       <% } %>
     </div>
-    <p><%- product.stock > 0 ? ('<span class="stock-ok">Stokda var (' + product.stock + ' ədəd)</span>') : '<span class="stock-out">Stokda yoxdur</span>' %></p>
+    <p><%- product.stock > 0 ? ('<span class="stock-ok">' + t('products.in_stock') + ' (' + product.stock + ' ' + t('products.pieces') + ')</span>') : ('<span class="stock-out">' + t('products.out_of_stock') + '</span>') %></p>
     <p><%= product.description %></p>
     <form action="/sebet/elave/<%= product.id %>" method="post" style="display:flex;gap:10px;align-items:center;margin-top:20px;">
       <input type="hidden" name="_csrf" value="<%= csrfToken %>">
       <input type="number" name="qty" value="1" min="1" style="width:70px;padding:10px;border:1px solid var(--border);border-radius:6px;">
-      <button class="btn" type="submit" <%= product.stock <= 0 ? 'disabled' : '' %>>Səbətə at</button>
+      <button class="btn" type="submit" <%= product.stock <= 0 ? 'disabled' : '' %>><%= t('products.add_to_cart') %></button>
     </form>
   </div>
 </div>
 
 <% if (related.length) { %>
 <section class="section">
-  <div class="section-title"><h2>Bənzər məhsullar</h2></div>
+  <div class="section-title"><h2><%= t('product.related_title') %></h2></div>
   <div class="product-grid">
     <%- include('partials/product-card-list', { products: related }) %>
   </div>

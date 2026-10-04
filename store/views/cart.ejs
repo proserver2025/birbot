@@ -1,10 +1,10 @@
 <div class="section">
-  <div class="section-title"><h2>Səbətim</h2></div>
+  <div class="section-title"><h2><%= t('cart.title') %></h2></div>
   <% if (!cart.length) { %>
-    <p>Səbətiniz boşdur. <a href="/mehsullar">Alış-verişə başla</a></p>
+    <p><%= t('cart.empty') %> <a href="/mehsullar"><%= t('cart.start_shopping') %></a></p>
   <% } else { %>
     <table class="data-table">
-      <thead><tr><th>Məhsul</th><th>Qiymət</th><th>Say</th><th>Cəm</th><th></th></tr></thead>
+      <thead><tr><th><%= t('cart.col_product') %></th><th><%= t('cart.col_price') %></th><th><%= t('cart.col_qty') %></th><th><%= t('cart.col_total') %></th><th></th></tr></thead>
       <tbody>
         <% cart.forEach(function(i) { %>
           <tr>
@@ -15,58 +15,56 @@
             <td>
               <form action="/sebet/sil/<%= i.id %>" method="post">
                 <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-                <button class="btn btn-sm btn-danger" type="submit">Sil</button>
+                <button class="btn btn-sm btn-danger" type="submit"><%= t('cart.remove') %></button>
               </form>
             </td>
           </tr>
         <% }) %>
       </tbody>
     </table>
-    <h3 style="text-align:right;margin-top:16px;">Məhsul cəmi: <%= subtotal.toFixed(2) %> ₼</h3>
+    <h3 style="text-align:right;margin-top:16px;"><%= t('cart.subtotal') %>: <%= subtotal.toFixed(2) %> ₼</h3>
 
     <% if (!customer) { %>
       <div class="form-card" style="max-width:460px;text-align:center;">
-        <h1>Sifariş vermək üçün qeydiyyatdan keçin</h1>
-        <p style="color:var(--muted);font-size:14px;">Qısadır — ad, email, telefon, parol. Google ilə də bir kliklə ola bilər.</p>
+        <h1><%= t('cart.need_account_title') %></h1>
+        <p style="color:var(--muted);font-size:14px;"><%= t('cart.need_account_text') %></p>
         <div style="display:flex;gap:10px;margin-top:16px;">
-          <a class="btn" style="flex:1;" href="/qeydiyyat">Qeydiyyat</a>
-          <a class="btn btn-outline" style="flex:1;" href="/giris?redirect=%2Fsebet">Giriş</a>
+          <a class="btn" style="flex:1;" href="/qeydiyyat"><%= t('nav.register') %></a>
+          <a class="btn btn-outline" style="flex:1;" href="/giris?redirect=%2Fsebet"><%= t('nav.login') %></a>
         </div>
       </div>
     <% } else if (needsPhone) { %>
       <div class="form-card" style="max-width:460px;text-align:center;">
-        <h1>Telefon nömrənizi tamamlayın</h1>
-        <p style="color:var(--muted);font-size:14px;">Sifariş vermədən əvvəl bir dəfəlik telefon nömrənizi əlavə etməlisiniz.</p>
-        <a class="btn" href="/telefon-elave-et?redirect=%2Fsebet">Davam et</a>
+        <h1><%= t('cart.need_phone_title') %></h1>
+        <p style="color:var(--muted);font-size:14px;"><%= t('cart.need_phone_text') %></p>
+        <a class="btn" href="/telefon-elave-et?redirect=%2Fsebet"><%= t('cart.need_phone_continue') %></a>
       </div>
     <% } else { %>
 
     <div class="form-card" style="margin-top:30px;max-width:520px;">
-      <h1>Sifarişi tamamla</h1>
+      <h1><%= t('cart.checkout_title') %></h1>
       <form action="/sifaris" method="post" id="checkoutForm">
         <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-        <div class="form-group"><label>Ad, Soyad</label><input type="text" name="name" value="<%= customer.full_name %>" required></div>
-        <div class="form-group"><label>Telefon</label><input type="text" value="<%= customer.phone %>" disabled style="background:var(--surface-2);"></div>
-        <div class="form-group"><label>Çatdırılma ünvanı</label><textarea name="address" rows="3" required></textarea></div>
+        <div class="form-group"><label><%= t('cart.full_name') %></label><input type="text" name="name" value="<%= customer.full_name %>" required></div>
+        <div class="form-group"><label><%= t('cart.phone') %></label><input type="text" value="<%= customer.phone %>" disabled style="background:var(--surface-2);"></div>
+        <div class="form-group"><label><%= t('cart.address') %></label><textarea name="address" rows="3" required></textarea></div>
 
         <div class="form-group">
-          <label>Çatdırılma zonası</label>
+          <label><%= t('cart.zone') %></label>
           <select name="shipping_zone_id" id="zoneSelect" required onchange="recalc()">
-            <option value="">— seçin —</option>
-            <optgroup label="Bakı daxili">
+            <option value=""><%= t('cart.zone_placeholder') %></option>
+            <optgroup label="<%= t('cart.zone_city_group') %>">
               <% zones.filter(z => z.kind === 'city').forEach(function(z) { %>
                 <option value="<%= z.id %>" data-price="<%= z.price %>"><%= z.name %> — <%= z.price.toFixed(2) %> ₼</option>
               <% }) %>
             </optgroup>
-            <optgroup label="Rayonlar">
+            <optgroup label="<%= t('cart.zone_region_group') %>">
               <% zones.filter(z => z.kind === 'region').forEach(function(z) { %>
                 <option value="<%= z.id %>" data-price="<%= z.price %>"><%= z.name %> — <%= z.price.toFixed(2) %> ₼</option>
               <% }) %>
             </optgroup>
           </select>
-          <p style="font-size:12px;color:var(--muted);margin-top:4px;">
-            Çatdırılma qiyməti bir sifarişə görədir (neçə məhsul olmasından asılı olmayaraq) — hamısı birlikdə göndərilir.
-          </p>
+          <p style="font-size:12px;color:var(--muted);margin-top:4px;"><%= t('cart.zone_note') %></p>
         </div>
 
         <% if (warrantyEnabled) { %>
@@ -74,7 +72,7 @@
           <label style="display:flex;align-items:flex-start;gap:8px;">
             <input type="checkbox" name="warranty" id="warrantyCheck" style="width:auto;margin-top:3px;" onchange="recalc()">
             <span>
-              <strong>Zəmanət talonu istəyirəm (+<%= warrantyPrice.toFixed(2) %> ₼)</strong><br>
+              <strong><%= t('cart.warranty_want') %> (+<%= warrantyPrice.toFixed(2) %> ₼)</strong><br>
               <span style="font-size:12.5px;color:var(--muted);"><%= warrantyTerms %></span>
             </span>
           </label>
@@ -83,24 +81,24 @@
 
         <% if (bonusSummary && bonusSummary.balance > 0) { %>
         <div class="form-group" style="background:var(--accent-tint,#fef3e2);padding:12px;border-radius:10px;">
-          <label style="font-weight:600;">💰 Bonus balansından istifadə et (mövcud: <%= bonusSummary.balance.toFixed(2) %> ₼)</label>
+          <label style="font-weight:600;">💰 <%= t('cart.bonus_use_label') %> (<%= t('cart.bonus_available') %>: <%= bonusSummary.balance.toFixed(2) %> ₼)</label>
           <input type="number" name="bonus_use" id="bonusUse" step="0.01" min="0" max="<%= bonusSummary.balance %>" value="0" oninput="recalc()" style="margin-top:6px;">
         </div>
         <% } %>
 
         <div style="border-top:1px solid var(--border);margin:16px 0;padding-top:12px;font-size:14px;">
-          <div style="display:flex;justify-content:space-between;"><span>Məhsul cəmi</span><span id="sumSubtotal"><%= subtotal.toFixed(2) %> ₼</span></div>
-          <div style="display:flex;justify-content:space-between;"><span>Çatdırılma</span><span id="sumShipping">0.00 ₼</span></div>
+          <div style="display:flex;justify-content:space-between;"><span><%= t('cart.subtotal') %></span><span id="sumSubtotal"><%= subtotal.toFixed(2) %> ₼</span></div>
+          <div style="display:flex;justify-content:space-between;"><span><%= t('cart.shipping') %></span><span id="sumShipping">0.00 ₼</span></div>
           <% if (warrantyEnabled) { %>
-          <div style="display:flex;justify-content:space-between;"><span>Zəmanət</span><span id="sumWarranty">0.00 ₼</span></div>
+          <div style="display:flex;justify-content:space-between;"><span><%= t('cart.warranty') %></span><span id="sumWarranty">0.00 ₼</span></div>
           <% } %>
           <% if (bonusSummary && bonusSummary.balance > 0) { %>
-          <div style="display:flex;justify-content:space-between;color:var(--success);"><span>Bonus endirimi</span><span id="sumBonus">-0.00 ₼</span></div>
+          <div style="display:flex;justify-content:space-between;color:var(--success);"><span><%= t('cart.bonus_discount') %></span><span id="sumBonus">-0.00 ₼</span></div>
           <% } %>
-          <div style="display:flex;justify-content:space-between;font-weight:700;font-size:16px;margin-top:8px;"><span>Ödəniləcək</span><span id="sumTotal"><%= subtotal.toFixed(2) %> ₼</span></div>
+          <div style="display:flex;justify-content:space-between;font-weight:700;font-size:16px;margin-top:8px;"><span><%= t('cart.payable') %></span><span id="sumTotal"><%= subtotal.toFixed(2) %> ₼</span></div>
         </div>
 
-        <button class="btn" type="submit" style="width:100%;">Sifarişi təsdiqlə</button>
+        <button class="btn" type="submit" style="width:100%;"><%= t('cart.confirm_btn') %></button>
       </form>
     </div>
 

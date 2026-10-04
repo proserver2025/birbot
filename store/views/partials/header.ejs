@@ -5,12 +5,20 @@
         <a href="tel:<%= brand.phoneHref %>">📞 <%= brand.phone %></a>
         <a href="mailto:<%= brand.email %>">✉️ <%= brand.email %></a>
       </div>
-      <div class="social-links">
-        <a href="<%= brand.telegram %>" target="_blank" rel="noopener">Telegram</a>
-        <a href="<%= brand.instagram %>" target="_blank" rel="noopener">Instagram</a>
-        <a href="<%= brand.facebook %>" target="_blank" rel="noopener">Facebook</a>
-        <a href="<%= brand.tiktok %>" target="_blank" rel="noopener">TikTok</a>
-        <a href="<%= brand.youtube %>" target="_blank" rel="noopener">YouTube</a>
+      <div style="display:flex;align-items:center;gap:14px;">
+        <div class="social-links">
+          <a href="<%= brand.telegram %>" target="_blank" rel="noopener">Telegram</a>
+          <a href="<%= brand.instagram %>" target="_blank" rel="noopener">Instagram</a>
+          <a href="<%= brand.facebook %>" target="_blank" rel="noopener">Facebook</a>
+          <a href="<%= brand.tiktok %>" target="_blank" rel="noopener">TikTok</a>
+          <a href="<%= brand.youtube %>" target="_blank" rel="noopener">YouTube</a>
+        </div>
+        <div class="lang-switch">
+          <a href="?lang=az" class="<%= lang === 'az' ? 'active' : '' %>">AZ</a>
+          <a href="?lang=ru" class="<%= lang === 'ru' ? 'active' : '' %>">RU</a>
+          <a href="?lang=en" class="<%= lang === 'en' ? 'active' : '' %>">EN</a>
+        </div>
+        <button type="button" class="theme-toggle" onclick="toggleTheme()" title="Dark / light" aria-label="Dark / light">🌓</button>
       </div>
     </div>
   </div>
@@ -18,26 +26,26 @@
     <div class="container">
       <a href="/" class="logo"><img src="/public/images/logo.jpg" alt="SaaS Home" style="height:44px;width:44px;border-radius:50%;object-fit:cover;">SaaS<span>Home</span></a>
       <form class="search-form" action="/mehsullar" method="get">
-        <input type="text" name="q" placeholder="Məhsul axtar...">
-        <button type="submit">Axtar</button>
+        <input type="text" name="q" placeholder="<%= t('nav.search_placeholder') %>">
+        <button type="submit"><%= t('nav.search_btn') %></button>
       </form>
       <div class="nav-actions">
         <% if (typeof customer !== 'undefined' && customer) { %>
-          <a href="/tereflik">💰 Tərəfdaşlıq</a>
+          <a href="/tereflik">💰 <%= t('nav.partner') %></a>
           <a href="/hesabim">👤 <%= customer.full_name.split(' ')[0] %></a>
-          <form action="/cixis" method="post" style="display:inline"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><button class="btn btn-sm btn-outline" type="submit">Çıxış</button></form>
+          <form action="/cixis" method="post" style="display:inline"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><button class="btn btn-sm btn-outline" type="submit"><%= t('nav.logout') %></button></form>
         <% } else { %>
-          <a href="/giris">Giriş</a>
-          <a href="/qeydiyyat">Qeydiyyat</a>
+          <a href="/giris"><%= t('nav.login') %></a>
+          <a href="/qeydiyyat"><%= t('nav.register') %></a>
         <% } %>
-        <a href="/sebet">🛒 Səbət <% if (typeof cartCount !== 'undefined' && cartCount > 0) { %><span class="cart-badge"><%= cartCount %></span><% } %></a>
+        <a href="/sebet">🛒 <%= t('nav.cart') %> <% if (typeof cartCount !== 'undefined' && cartCount > 0) { %><span class="cart-badge"><%= cartCount %></span><% } %></a>
       </div>
     </div>
   </nav>
   <div class="category-bar">
     <div class="container">
-      <a href="/mehsullar">Bütün məhsullar</a>
-      <a href="/haqqimizda">Haqqımızda</a>
+      <a href="/mehsullar"><%= t('nav.all_products') %></a>
+      <a href="/haqqimizda"><%= t('nav.about') %></a>
       <% if (typeof categories !== 'undefined') { %>
         <% categories.forEach(function(c) { %>
           <a href="/kateqoriya/<%= c.slug %>"><%= c.name %></a>

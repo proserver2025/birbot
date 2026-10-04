@@ -52,19 +52,19 @@ router.get('/', (req, res) => {
   const latest = db
     .prepare('SELECT * FROM products WHERE is_active = 1 ORDER BY created_at DESC LIMIT 12')
     .all();
-  res.render('home', { categories, featured, latest, title: 'Ana səhifə' });
+  res.render('home', { categories, featured, latest, title: res.locals.t('page.home_title') });
 });
 
 // About
 router.get('/haqqimizda', (req, res) => {
   const categories = db.prepare('SELECT * FROM categories ORDER BY sort_order').all();
-  res.render('about', { categories, title: 'Haqqımızda' });
+  res.render('about', { categories, title: res.locals.t('nav.about') });
 });
 
 // Category listing
 router.get('/kateqoriya/:slug', (req, res) => {
   const category = db.prepare('SELECT * FROM categories WHERE slug = ?').get(req.params.slug);
-  if (!category) return res.status(404).render('404', { title: 'Tapılmadı' });
+  if (!category) return res.status(404).render('404', { title: res.locals.t('error.404_title') });
   const products = db
     .prepare('SELECT * FROM products WHERE category_id = ? AND is_active = 1 ORDER BY created_at DESC')
     .all(category.id);
@@ -84,13 +84,13 @@ router.get('/mehsullar', (req, res) => {
     products = db.prepare('SELECT * FROM products WHERE is_active = 1 ORDER BY created_at DESC').all();
   }
   const categories = db.prepare('SELECT * FROM categories ORDER BY sort_order').all();
-  res.render('products', { products, categories, q, title: 'Məhsullar' });
+  res.render('products', { products, categories, q, title: res.locals.t('products.title') });
 });
 
 // Product detail
 router.get('/mehsul/:slug', (req, res) => {
   const product = db.prepare('SELECT * FROM products WHERE slug = ?').get(req.params.slug);
-  if (!product) return res.status(404).render('404', { title: 'Tapılmadı' });
+  if (!product) return res.status(404).render('404', { title: res.locals.t('error.404_title') });
   const related = db
     .prepare('SELECT * FROM products WHERE category_id = ? AND id != ? AND is_active = 1 LIMIT 4')
     .all(product.category_id, product.id);
@@ -134,7 +134,7 @@ router.get('/sebet', (req, res) => {
     warrantyTerms,
     bonusSummary,
     needsPhone: res.locals.customer && !res.locals.customer.phone,
-    title: 'Səbətim',
+    title: res.locals.t('cart.title'),
   });
 });
 
@@ -213,18 +213,18 @@ router.post('/sifaris', requireCustomer, (req, res) => {
     warrantyFee,
     bonusUsed,
     total,
-    title: 'Sifariş qəbul olundu',
+    title: res.locals.t('done.title'),
   });
 });
 
 // --- Customer auth ---
 router.get('/qeydiyyat', (req, res) =>
-  res.render('register', { title: 'Qeydiyyat', error: null, googleClientId: google.GOOGLE_CLIENT_ID })
+  res.render('register', { title: res.locals.t('auth.register_title'), error: null, googleClientId: google.GOOGLE_CLIENT_ID })
 );
 
 router.post('/qeydiyyat', authLimiter, (req, res) => {
   const { full_name, email, phone, password } = req.body;
-  const fail = (msg) => res.render('register', { title: 'Qeydiyyat', error: msg, googleClientId: google.GOOGLE_CLIENT_ID });
+  const fail = (msg) => res.render('register', { title: res.locals.t('auth.register_title'), error: msg, googleClientId: google.GOOGLE_CLIENT_ID });
 
   if (!full_name || !email || !password) return fail('Bütün vacib sahələri doldurun.');
   // Phone is mandatory (courier needs it), kept to a loose but real check
@@ -244,14 +244,14 @@ router.post('/qeydiyyat', authLimiter, (req, res) => {
 });
 
 router.get('/giris', (req, res) =>
-  res.render('login', { title: 'Giriş', error: null, redirect: req.query.redirect || '/', googleClientId: google.GOOGLE_CLIENT_ID })
+  res.render('login', { title: res.locals.t('auth.login_title'), error: null, redirect: req.query.redirect || '/', googleClientId: google.GOOGLE_CLIENT_ID })
 );
 router.get('/login', (req, res) => res.redirect('/giris' + (req.query.redirect ? `?redirect=${encodeURIComponent(req.query.redirect)}` : '')));
 
 router.post('/giris', authLimiter, (req, res) => {
   const { email, password } = req.body;
   const redirect = req.body.redirect || '/';
-  const fail = (msg) => res.render('login', { title: 'Giriş', error: msg, redirect, googleClientId: google.GOOGLE_CLIENT_ID });
+  const fail = (msg) => res.render('login', { title: res.locals.t('auth.login_title'), error: msg, redirect, googleClientId: google.GOOGLE_CLIENT_ID });
 
   const customer = db.prepare('SELECT * FROM customers WHERE email = ?').get(email);
   if (!customer) return fail('Email və ya parol yanlışdır.');
@@ -277,7 +277,7 @@ router.post('/auth/google', authLimiter, async (req, res) => {
     const { email, name, googleId } = await google.verifyGoogleToken(req.body.credential);
     let customer = db.prepare('SELECT * FROM customers WHERE google_id = ? OR email = ?').get(googleId, email);
     if (customer && customer.is_blocked) {
-      return res.render('login', { title: 'Giriş', error: 'Bu hesab bloklanıb. Suallarınız varsa bizimlə əlaqə saxlayın.', redirect, googleClientId: google.GOOGLE_CLIENT_ID });
+      return res.render('login', { title: res.locals.t('auth.login_title'), error: 'Bu hesab bloklanıb. Suallarınız varsa bizimlə əlaqə saxlayın.', redirect, googleClientId: google.GOOGLE_CLIENT_ID });
     }
     if (!customer) {
       const result = db
@@ -295,7 +295,7 @@ router.post('/auth/google', authLimiter, async (req, res) => {
     }
     res.redirect(redirect);
   } catch (err) {
-    res.render('login', { title: 'Giriş', error: 'Google ilə giriş alınmadı: ' + err.message, redirect, googleClientId: google.GOOGLE_CLIENT_ID });
+    res.render('login', { title: res.locals.t('auth.login_title'), error: 'Google ilə giriş alınmadı: ' + err.message, redirect, googleClientId: google.GOOGLE_CLIENT_ID });
   }
 });
 
@@ -304,13 +304,13 @@ router.post('/auth/google', authLimiter, async (req, res) => {
 router.get('/telefon-elave-et', requireCustomer, (req, res) => {
   const customer = db.prepare('SELECT phone FROM customers WHERE id = ?').get(req.session.customerId);
   if (customer.phone) return res.redirect(req.query.redirect || '/');
-  res.render('add-phone', { title: 'Telefon nömrəsi', error: null, redirect: req.query.redirect || '/' });
+  res.render('add-phone', { title: res.locals.t('auth.phone_title'), error: null, redirect: req.query.redirect || '/' });
 });
 
 router.post('/telefon-elave-et', requireCustomer, (req, res) => {
   const cleanPhone = (req.body.phone || '').replace(/[^\d+]/g, '');
   if (cleanPhone.length < 9) {
-    return res.render('add-phone', { title: 'Telefon nömrəsi', error: 'Düzgün telefon nömrəsi daxil edin.', redirect: req.body.redirect || '/' });
+    return res.render('add-phone', { title: res.locals.t('auth.phone_title'), error: 'Düzgün telefon nömrəsi daxil edin.', redirect: req.body.redirect || '/' });
   }
   db.prepare('UPDATE customers SET phone = ? WHERE id = ?').run(cleanPhone, req.session.customerId);
   res.redirect(req.body.redirect || '/');
@@ -326,7 +326,7 @@ router.get('/hesabim', requireCustomer, (req, res) => {
     .prepare('SELECT * FROM orders WHERE customer_id = ? ORDER BY created_at DESC')
     .all(req.session.customerId);
   const bonusSummary = bonus.getBonusSummary(req.session.customerId);
-  res.render('account', { orders, bonusSummary, title: 'Hesabım' });
+  res.render('account', { orders, bonusSummary, title: res.locals.t('account.title') });
 });
 
 // --- Sifariş detalı: çatdırılma izləməsi + mağaza ilə çat (konum paylaşımı) ---
@@ -341,7 +341,7 @@ router.get('/hesabim/sifaris/:id', requireCustomer, (req, res) => {
   const trackingEvents = db.prepare('SELECT * FROM order_tracking_events WHERE order_id = ? ORDER BY id ASC').all(order.id);
   const messages = db.prepare('SELECT * FROM order_messages WHERE order_id = ? ORDER BY id ASC').all(order.id);
   db.prepare("UPDATE order_messages SET is_read_by_customer = 1 WHERE order_id = ? AND sender_type = 'admin'").run(order.id);
-  res.render('order-detail', { title: `Sifariş #${order.id}`, order, items, trackingEvents, messages });
+  res.render('order-detail', { title: `${res.locals.t('order.title_prefix')} #${order.id}`, order, items, trackingEvents, messages });
 });
 
 router.get('/hesabim/sifaris/:id/mesajlar', requireCustomer, (req, res) => {
@@ -375,7 +375,7 @@ router.get('/tereflik', requireCustomer, (req, res) => {
   const summary = affiliates.getAffiliateSummary(req.session.customerId);
   const commissionPercent = settings.getNumber('affiliate_commission_percent', 10);
   const holdDays = settings.getNumber('affiliate_hold_days', 15);
-  res.render('partner', { ...summary, commissionPercent, holdDays, title: 'Tərəfdaşlıq proqramı', error: null, success: null });
+  res.render('partner', { ...summary, commissionPercent, holdDays, title: res.locals.t('partner.title'), error: null, success: null });
 });
 
 router.post('/tereflik/cek', requireCustomer, (req, res) => {
@@ -387,7 +387,7 @@ router.post('/tereflik/cek', requireCustomer, (req, res) => {
       ...summary,
       commissionPercent,
       holdDays,
-      title: 'Tərəfdaşlıq proqramı',
+      title: res.locals.t('partner.title'),
       error: `Minimum çıxarış həddi ${summary.threshold} ₼-dir, hələ ona çatmamısınız.`,
       success: null,
     });
@@ -399,7 +399,7 @@ router.post('/tereflik/cek', requireCustomer, (req, res) => {
     ...updated,
     commissionPercent,
     holdDays,
-    title: 'Tərəfdaşlıq proqramı',
+    title: res.locals.t('partner.title'),
     error: null,
     success: 'Çıxarış sorğusu göndərildi. Admin təsdiqlədikdən sonra ödəniş ediləcək.',
   });

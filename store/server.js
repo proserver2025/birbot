@@ -9,6 +9,7 @@ const expressLayouts = require('express-ejs-layouts');
 
 const db = require('./db');
 const csrfMiddleware = require('./middleware/csrf');
+const { i18nMiddleware } = require('./config/i18n');
 const publicRoutes = require('./routes/public');
 const adminRoutes = require('./routes/admin');
 
@@ -67,13 +68,14 @@ app.use(
   })
 );
 
+app.use(i18nMiddleware);
 app.use(csrfMiddleware);
 
 app.use('/admin', adminRoutes);
 app.use('/', publicRoutes);
 
 app.use((req, res) => {
-  res.status(404).render('404', { title: 'Tapılmadı', layout: 'layout' });
+  res.status(404).render('404', { title: res.locals.t('error.404_title'), layout: 'layout' });
 });
 
 // Global error handler — never leak stack traces to the client; multer's
@@ -84,8 +86,10 @@ app.use((err, req, res, next) => {
   res.locals.brand = res.locals.brand || require('./config/brand');
   res.locals.cartCount = res.locals.cartCount || 0;
   res.locals.customer = res.locals.customer || null;
+  res.locals.lang = res.locals.lang || 'az';
+  res.locals.t = res.locals.t || ((key) => key);
   const message = err && err.message ? err.message : 'Gözlənilməz xəta baş verdi.';
-  res.status(err.status || 400).render('error', { title: 'Xəta', message, layout: 'layout' });
+  res.status(err.status || 400).render('error', { title: res.locals.t('error.generic_title'), message, layout: 'layout' });
 });
 
 app.listen(PORT, () => {

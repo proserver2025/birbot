@@ -1,34 +1,26 @@
 <section class="section" style="margin-top:36px;">
-  <div class="section-title"><h2>Biz kimik</h2></div>
+  <div class="section-title"><h2><%= t('about.title') %></h2></div>
   <div style="display:grid;grid-template-columns:1.3fr 1fr;gap:40px;align-items:start;">
     <div>
-      <p style="font-size:16px;color:var(--muted);line-height:1.75;">
-        SaaS Home — Azərbaycanda ev və mətbəx əşyaları, elektrik məişət texnikası sahəsində
-        fəaliyyət göstərən onlayn pərakəndə mağazadır. Məqsədimiz sadədir: etibarlı məhsulları,
-        şəffaf qiymətlə və sürətli çatdırılma ilə birbaşa sizin evinizə çatdırmaq.
-      </p>
-      <p style="font-size:16px;color:var(--muted);line-height:1.75;">
-        Həm fərdi müştərilər, həm də topdan sifariş verən biznes tərəfdaşları üçün işləyirik.
-        Kataloqumuz daim yenilənir, admin komandamız hər məhsulu diqqətlə seçir ki, siz yalnız
-        yoxlanılmış, keyfiyyətli məhsulla qarşılaşasınız.
-      </p>
+      <p style="font-size:16px;color:var(--muted);line-height:1.75;"><%= t('about.p1') %></p>
+      <p style="font-size:16px;color:var(--muted);line-height:1.75;"><%= t('about.p2') %></p>
       <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:16px;margin-top:28px;">
         <div class="form-card" style="margin:0;padding:20px;text-align:center;">
-          <div style="font-family:'Fraunces',serif;font-size:24px;font-weight:600;color:var(--brand-dark);">Pərakəndə</div>
-          <div style="color:var(--muted);font-size:13px;margin-top:4px;">& topdan satış</div>
+          <div style="font-family:'Fraunces',serif;font-size:24px;font-weight:600;color:var(--brand-dark);"><%= t('about.tag_retail') %></div>
+          <div style="color:var(--muted);font-size:13px;margin-top:4px;"><%= t('about.tag_retail_sub') %></div>
         </div>
         <div class="form-card" style="margin:0;padding:20px;text-align:center;">
-          <div style="font-family:'Fraunces',serif;font-size:24px;font-weight:600;color:var(--brand-dark);">Bakı</div>
-          <div style="color:var(--muted);font-size:13px;margin-top:4px;">və bölgələrə çatdırılma</div>
+          <div style="font-family:'Fraunces',serif;font-size:24px;font-weight:600;color:var(--brand-dark);"><%= t('about.tag_baku') %></div>
+          <div style="color:var(--muted);font-size:13px;margin-top:4px;"><%= t('about.tag_baku_sub') %></div>
         </div>
       </div>
     </div>
     <div class="form-card" style="margin:0;">
-      <h1 style="font-size:19px;">Əlaqə məlumatları</h1>
-      <div class="form-group"><label>Telefon</label><p style="margin:0;font-size:15px;"><a href="tel:<%= brand.phoneHref %>"><%= brand.phone %></a></p></div>
-      <div class="form-group"><label>E-poçt</label><p style="margin:0;font-size:15px;"><a href="mailto:<%= brand.email %>"><%= brand.email %></a></p></div>
+      <h1 style="font-size:19px;"><%= t('about.contact_title') %></h1>
+      <div class="form-group"><label><%= t('about.phone') %></label><p style="margin:0;font-size:15px;"><a href="tel:<%= brand.phoneHref %>"><%= brand.phone %></a></p></div>
+      <div class="form-group"><label><%= t('about.email') %></label><p style="margin:0;font-size:15px;"><a href="mailto:<%= brand.email %>"><%= brand.email %></a></p></div>
       <div class="form-group">
-        <label>Sosial media</label>
+        <label><%= t('about.social') %></label>
         <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:6px;">
           <a class="btn btn-sm btn-outline" href="<%= brand.telegram %>" target="_blank" rel="noopener">Telegram</a>
           <a class="btn btn-sm btn-outline" href="<%= brand.instagram %>" target="_blank" rel="noopener">Instagram</a>
@@ -42,11 +34,11 @@
 </section>
 
 <section class="section">
-  <div class="section-title"><h2>Niyə SaaS Home?</h2></div>
+  <div class="section-title"><h2><%= t('about.why_title') %></h2></div>
   <div class="cat-pill-grid">
-    <div class="cat-pill" style="cursor:default;">Yoxlanılmış keyfiyyət</div>
-    <div class="cat-pill" style="cursor:default;">Şəffaf qiymət</div>
-    <div class="cat-pill" style="cursor:default;">Sürətli çatdırılma</div>
-    <div class="cat-pill" style="cursor:default;">Topdan sifariş imkanı</div>
+    <div class="cat-pill" style="cursor:default;"><%= t('about.why_1') %></div>
+    <div class="cat-pill" style="cursor:default;"><%= t('about.why_2') %></div>
+    <div class="cat-pill" style="cursor:default;"><%= t('about.why_3') %></div>
+    <div class="cat-pill" style="cursor:default;"><%= t('about.why_4') %></div>
   </div>
 </section>

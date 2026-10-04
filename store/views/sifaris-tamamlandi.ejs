@@ -1,18 +1,21 @@
 <div class="form-card" style="text-align:center;">
-  <h1>✅ Sifariş qəbul olundu!</h1>
-  <p>Sifariş nömrəniz: <strong>#<%= orderId %></strong></p>
+  <h1><%= t('done.title') %></h1>
+  <p><%= t('done.order_no') %>: <strong>#<%= orderId %></strong></p>
   <div style="text-align:left;font-size:14px;margin:18px 0;border-top:1px solid var(--border);padding-top:12px;">
-    <div style="display:flex;justify-content:space-between;"><span>Məhsul cəmi</span><span><%= subtotal.toFixed(2) %> ₼</span></div>
-    <div style="display:flex;justify-content:space-between;"><span>Çatdırılma</span><span><%= shippingFee.toFixed(2) %> ₼</span></div>
+    <div style="display:flex;justify-content:space-between;"><span><%= t('cart.subtotal') %></span><span><%= subtotal.toFixed(2) %> ₼</span></div>
+    <div style="display:flex;justify-content:space-between;"><span><%= t('cart.shipping') %></span><span><%= shippingFee.toFixed(2) %> ₼</span></div>
     <% if (warrantyFee > 0) { %>
-    <div style="display:flex;justify-content:space-between;"><span>Zəmanət</span><span><%= warrantyFee.toFixed(2) %> ₼</span></div>
+    <div style="display:flex;justify-content:space-between;"><span><%= t('cart.warranty') %></span><span><%= warrantyFee.toFixed(2) %> ₼</span></div>
     <% } %>
     <% if (bonusUsed > 0) { %>
-    <div style="display:flex;justify-content:space-between;color:var(--success);"><span>Bonus endirimi</span><span>-<%= bonusUsed.toFixed(2) %> ₼</span></div>
+    <div style="display:flex;justify-content:space-between;color:var(--success);"><span><%= t('cart.bonus_discount') %></span><span>-<%= bonusUsed.toFixed(2) %> ₼</span></div>
     <% } %>
-    <div style="display:flex;justify-content:space-between;font-weight:700;margin-top:8px;"><span>Ödənilib</span><span><%= total.toFixed(2) %> ₼</span></div>
+    <div style="display:flex;justify-content:space-between;font-weight:700;margin-top:8px;"><span><%= t('done.paid') %></span><span><%= total.toFixed(2) %> ₼</span></div>
   </div>
-  <p style="font-size:13.5px;color:var(--muted);">Bu sifarişə görə bonus balansınıza kəşbek yazılacaq (15 gün ərzində təsdiqlənəcək).</p>
-  <p>Tezliklə sizinlə əlaqə saxlanılacaq.</p>
-  <a class="btn" href="/">Ana səhifəyə qayıt</a>
+  <p style="font-size:13.5px;color:var(--muted);"><%= t('done.bonus_note') %></p>
+  <p><%= t('done.text') %></p>
+  <div style="display:flex;gap:10px;justify-content:center;margin-top:10px;">
+    <a class="btn btn-outline" href="/hesabim/sifaris/<%= orderId %>"><%= t('done.view_order') %></a>
+    <a class="btn" href="/"><%= t('done.back_home') %></a>
+  </div>
 </div>

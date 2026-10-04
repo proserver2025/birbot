@@ -1,5 +1,5 @@
 <div class="form-card">
-  <h1>Giriş</h1>
+  <h1><%= t('auth.login_title') %></h1>
   <% if (error) { %><div class="form-error"><%= error %></div><% } %>
 
   <% if (googleClientId) { %>
@@ -10,7 +10,7 @@
     </div>
     <div class="g_id_signin" data-type="standard" data-width="100%" data-text="signin_with"></div>
     <div style="display:flex;align-items:center;gap:10px;margin:18px 0;color:var(--muted);font-size:13px;">
-      <div style="flex:1;height:1px;background:var(--border);"></div>ya da<div style="flex:1;height:1px;background:var(--border);"></div>
+      <div style="flex:1;height:1px;background:var(--border);"></div><%= t('auth.or') %><div style="flex:1;height:1px;background:var(--border);"></div>
     </div>
     <form id="googleForm" action="/auth/google" method="post" style="display:none;">
       <input type="hidden" name="credential" id="googleCredential">
@@ -29,9 +29,9 @@
   <form action="/giris" method="post">
     <input type="hidden" name="redirect" value="<%= redirect %>">
     <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-    <div class="form-group"><label>Email</label><input type="email" name="email" required></div>
-    <div class="form-group"><label>Parol</label><input type="password" name="password" required></div>
-    <button class="btn" type="submit" style="width:100%;">Daxil ol</button>
+    <div class="form-group"><label><%= t('auth.email') %></label><input type="email" name="email" required></div>
+    <div class="form-group"><label><%= t('auth.password') %></label><input type="password" name="password" required></div>
+    <button class="btn" type="submit" style="width:100%;"><%= t('auth.login_btn') %></button>
   </form>
-  <p style="margin-top:14px;text-align:center;">Hesabın yoxdur? <a href="/qeydiyyat">Qeydiyyatdan keç</a></p>
+  <p style="margin-top:14px;text-align:center;"><%= t('auth.no_account') %> <a href="/qeydiyyat"><%= t('auth.register_link') %></a></p>
 </div>

@@ -1,6 +1,6 @@
 <div class="chat-bubble <%= m.sender_type === 'customer' ? 'customer' : 'admin' %>">
   <% if (m.lat !== null && m.lng !== null) { %>
-    <div class="location-pin">📍 Konum paylaşıldı <a class="location-link" target="_blank" rel="noopener" href="https://www.google.com/maps?q=<%= m.lat %>,<%= m.lng %>">xəritədə bax</a></div>
+    <div class="location-pin">📍 <%= t('order.location_sent') %> <a class="location-link" target="_blank" rel="noopener" href="https://www.google.com/maps?q=<%= m.lat %>,<%= m.lng %>"><%= t('order.location_view') %></a></div>
   <% } %>
   <% if (m.message) { %><div><%= m.message %></div><% } %>
   <span class="meta"><%= m.created_at %></span>

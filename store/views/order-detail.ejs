@@ -1,20 +1,20 @@
 <div class="section">
   <div class="section-title" style="display:flex;justify-content:space-between;align-items:center;">
-    <h2>Sifariş #<%= order.id %></h2>
-    <a href="/hesabim" style="font-size:13.5px;color:var(--muted);">← Hesabıma qayıt</a>
+    <h2><%= t('order.title_prefix') %> #<%= order.id %></h2>
+    <a href="/hesabim" style="font-size:13.5px;color:var(--muted);"><%= t('order.back_to_account') %></a>
   </div>
 
   <div class="admin-card" style="max-width:640px;">
-    <p><strong>Tarix:</strong> <%= order.created_at %></p>
-    <p><strong>Ünvan:</strong> <%= order.customer_address || '—' %></p>
-    <p><strong>Ümumi məbləğ:</strong> <%= order.total.toFixed(2) %> ₼</p>
-    <p><strong>Status:</strong> <span class="status-tag status-<%= order.status %>"><%= order.status %></span></p>
+    <p><strong><%= t('order.date') %>:</strong> <%= order.created_at %></p>
+    <p><strong><%= t('order.address') %>:</strong> <%= order.customer_address || '—' %></p>
+    <p><strong><%= t('order.total') %>:</strong> <%= order.total.toFixed(2) %> ₼</p>
+    <p><strong><%= t('order.status') %>:</strong> <span class="status-tag status-<%= order.status %>"><%= t('status.' + order.status) %></span></p>
   </div>
 
   <div class="admin-card" style="max-width:640px;">
-    <h3>Çatdırılma izləməsi</h3>
+    <h3><%= t('order.tracking_title') %></h3>
     <% if (!trackingEvents.length) { %>
-      <p style="color:var(--muted);font-size:13.5px;">Sifarişiniz hazırlanır, tezliklə burada izləmə məlumatı görünəcək.</p>
+      <p style="color:var(--muted);font-size:13.5px;"><%= t('order.tracking_empty') %></p>
     <% } else { %>
       <ul class="tracking-timeline">
         <% trackingEvents.slice().reverse().forEach(function(ev) { %>
@@ -29,22 +29,22 @@
   </div>
 
   <div class="admin-card" style="max-width:640px;">
-    <h3>Mağaza ilə çat</h3>
-    <p style="color:var(--muted);font-size:13px;margin-top:-8px;">Kuryerə ünvanı dəqiqləşdirmək üçün buradan konumunuzu paylaşa bilərsiniz.</p>
+    <h3><%= t('order.chat_title') %></h3>
+    <p style="color:var(--muted);font-size:13px;margin-top:-8px;"><%= t('order.chat_hint') %></p>
 
     <div id="chatBox" class="chat-box">
       <% if (!messages.length) { %>
-        <div class="chat-empty" id="chatEmpty">Hələ mesaj yoxdur. Sual varsa, bura yazın.</div>
+        <div class="chat-empty" id="chatEmpty"><%= t('order.chat_empty') %></div>
       <% } %>
       <% messages.forEach(function(m) { %>
-        <%- include('partials/chat-bubble', { m: m }) %>
+        <%- include('partials/chat-bubble', { m: m, t: t }) %>
       <% }) %>
     </div>
 
     <form id="chatForm" class="chat-input-row">
-      <button type="button" class="chat-location-btn" id="sendLocationBtn" title="Konumu göndər">📍</button>
-      <textarea id="chatInput" placeholder="Mesajınızı yazın..." rows="1"></textarea>
-      <button type="submit" class="btn btn-sm">Göndər</button>
+      <button type="button" class="chat-location-btn" id="sendLocationBtn" title="<%= t('order.location_btn_title') %>">📍</button>
+      <textarea id="chatInput" placeholder="<%= t('order.chat_placeholder') %>" rows="1"></textarea>
+      <button type="submit" class="btn btn-sm"><%= t('order.chat_send') %></button>
     </form>
     <p id="locationStatus" style="font-size:12px;color:var(--muted);margin-top:6px;"></p>
   </div>
@@ -54,6 +54,13 @@
 (function () {
   const orderId = <%= order.id %>;
   const csrfToken = '<%= csrfToken %>';
+  const i18n = {
+    locationSent: <%- JSON.stringify(t('order.location_sent')) %>,
+    locationView: <%- JSON.stringify(t('order.location_view')) %>,
+    noGeo: <%- JSON.stringify(t('order.location_no_geo')) %>,
+    gettingLocation: <%- JSON.stringify(t('order.location_getting')) %>,
+    locationDenied: <%- JSON.stringify(t('order.location_denied')) %>,
+  };
   const chatBox = document.getElementById('chatBox');
   const chatForm = document.getElementById('chatForm');
   const chatInput = document.getElementById('chatInput');
@@ -68,7 +75,7 @@
     const cls = m.sender_type === 'customer' ? 'customer' : 'admin';
     let body = '';
     if (m.lat !== null && m.lng !== null) {
-      body += '<div class="location-pin">📍 Konum paylaşıldı <a class="location-link" target="_blank" rel="noopener" href="https://www.google.com/maps?q=' + m.lat + ',' + m.lng + '">xəritədə bax</a></div>';
+      body += '<div class="location-pin">📍 ' + i18n.locationSent + ' <a class="location-link" target="_blank" rel="noopener" href="https://www.google.com/maps?q=' + m.lat + ',' + m.lng + '">' + i18n.locationView + '</a></div>';
     }
     if (m.message) body += '<div>' + escapeHtml(m.message) + '</div>';
     const div = document.createElement('div');
@@ -107,17 +114,17 @@
 
   document.getElementById('sendLocationBtn').addEventListener('click', function () {
     if (!navigator.geolocation) {
-      locationStatus.textContent = 'Bu cihazda konum paylaşımı mümkün deyil.';
+      locationStatus.textContent = i18n.noGeo;
       return;
     }
-    locationStatus.textContent = 'Konum alınır...';
+    locationStatus.textContent = i18n.gettingLocation;
     navigator.geolocation.getCurrentPosition(
       function (pos) {
         locationStatus.textContent = '';
         sendPayload({ lat: pos.coords.latitude, lng: pos.coords.longitude });
       },
       function () {
-        locationStatus.textContent = 'Konuma icazə verilmədi.';
+        locationStatus.textContent = i18n.locationDenied;
       }
     );
   });

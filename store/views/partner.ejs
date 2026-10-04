@@ -1,48 +1,46 @@
 <div class="section">
-  <div class="section-title"><h2>Tərəfdaşlıq proqramı</h2></div>
+  <div class="section-title"><h2><%= t('partner.title') %></h2></div>
 
   <p style="color:var(--muted);max-width:60ch;">
-    Öz linkini paylaş — kimsə o link üzərindən bizdən məhsul alsa, satışın <strong><%= commissionPercent %>%</strong>-i
-    sənin balansına yazılır. Pul <strong><%= holdDays %> gün</strong> sonra (qaytarma müddəti bitəndən sonra)
-    "təmizlənir" və çıxarıla bilən olur. Balansın <strong><%= threshold %> ₼</strong>-ə çatanda çıxarış sorğusu göndərə bilərsən.
+    <%= t('partner.explain', { pct: commissionPercent, days: holdDays, threshold: threshold }) %>
   </p>
 
   <% if (error) { %><div class="form-error" style="max-width:500px;"><%= error %></div><% } %>
   <% if (success) { %><div style="background:#dcfce7;color:#166534;padding:11px 14px;border-radius:10px;margin-bottom:16px;max-width:500px;font-size:14px;"><%= success %></div><% } %>
 
   <div class="admin-card" style="max-width:600px;">
-    <h3>Sənin referral linkin</h3>
+    <h3><%= t('partner.your_link') %></h3>
     <div style="display:flex;gap:10px;">
       <input type="text" id="refLink" readonly value="" style="flex:1;padding:10px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;">
-      <button class="btn btn-sm" type="button" onclick="copyLink()">Kopyala</button>
+      <button class="btn btn-sm" type="button" onclick="copyLink()"><%= t('partner.copy') %></button>
     </div>
-    <p style="font-size:12.5px;color:var(--muted);margin-top:8px;">Kod: <strong><%= customer.referral_code %></strong></p>
+    <p style="font-size:12.5px;color:var(--muted);margin-top:8px;"><%= t('partner.code_label') %>: <strong><%= customer.referral_code %></strong></p>
   </div>
 
   <div class="stat-cards">
-    <div class="stat-card"><div class="num"><%= customer.affiliate_balance.toFixed(2) %> ₼</div><div class="label">Çıxarıla bilən balans</div></div>
-    <div class="stat-card"><div class="num"><%= pendingTotal.toFixed(2) %> ₼</div><div class="label">Gözləmədə (<%= holdDays %> gün)</div></div>
-    <div class="stat-card"><div class="num"><%= paidTotal.toFixed(2) %> ₼</div><div class="label">İndiyədək ödənilib</div></div>
+    <div class="stat-card"><div class="num"><%= customer.affiliate_balance.toFixed(2) %> ₼</div><div class="label"><%= t('partner.withdrawable_balance') %></div></div>
+    <div class="stat-card"><div class="num"><%= pendingTotal.toFixed(2) %> ₼</div><div class="label"><%= t('partner.pending') %> (<%= holdDays %> <%= t('account.bonus_days') %>)</div></div>
+    <div class="stat-card"><div class="num"><%= paidTotal.toFixed(2) %> ₼</div><div class="label"><%= t('partner.paid_so_far') %></div></div>
   </div>
 
   <div class="admin-card" style="max-width:500px;">
-    <h3>Çıxarış</h3>
+    <h3><%= t('partner.withdraw_title') %></h3>
     <% if (canRequestPayout) { %>
       <form action="/tereflik/cek" method="post">
         <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-        <p>Balansın (<%= customer.affiliate_balance.toFixed(2) %> ₼) çıxarış üçün hazırdır.</p>
-        <button class="btn" type="submit">Çıxarış sorğusu göndər</button>
+        <p><%= t('partner.withdraw_ready', { amount: customer.affiliate_balance.toFixed(2) }) %></p>
+        <button class="btn" type="submit"><%= t('partner.payout_btn') %></button>
       </form>
     <% } else { %>
-      <p style="color:var(--muted);">Minimum <%= threshold %> ₼ olmalıdır. Hələ <%= (threshold - customer.affiliate_balance).toFixed(2) %> ₼ qalıb.</p>
+      <p style="color:var(--muted);"><%= t('partner.withdraw_min', { threshold: threshold, remaining: (threshold - customer.affiliate_balance).toFixed(2) }) %></p>
     <% } %>
   </div>
 
   <% if (referredOrders.length) { %>
   <div class="admin-card">
-    <h3>Gətirdiyin sifarişlər</h3>
+    <h3><%= t('partner.referred_orders_title') %></h3>
     <table class="data-table">
-      <thead><tr><th>№</th><th>Tarix</th><th>Məhsul məbləği</th><th>Komissiya</th><th>Status</th></tr></thead>
+      <thead><tr><th><%= t('account.col_no') %></th><th><%= t('order.date') %></th><th><%= t('partner.col_product_amount') %></th><th><%= t('partner.col_commission') %></th><th><%= t('order.status') %></th></tr></thead>
       <tbody>
         <% referredOrders.forEach(function(o) { %>
           <tr>
@@ -50,7 +48,7 @@
             <td><%= o.created_at %></td>
             <td><%= o.subtotal.toFixed(2) %> ₼</td>
             <td><%= o.commission_amount.toFixed(2) %> ₼</td>
-            <td><span class="status-tag status-<%= o.commission_status === 'temizlendi' ? 'tamamlandi' : (o.commission_status === 'legv_edildi' ? 'legv_edildi' : 'yeni') %>"><%= o.commission_status %></span></td>
+            <td><span class="status-tag status-<%= o.commission_status === 'temizlendi' ? 'tamamlandi' : (o.commission_status === 'legv_edildi' ? 'legv_edildi' : 'yeni') %>"><%= t('status.' + o.commission_status) %></span></td>
           </tr>
         <% }) %>
       </tbody>
@@ -60,12 +58,12 @@
 
   <% if (payoutRequests.length) { %>
   <div class="admin-card">
-    <h3>Çıxarış sorğuların</h3>
+    <h3><%= t('partner.history_title') %></h3>
     <table class="data-table">
-      <thead><tr><th>Tarix</th><th>Məbləğ</th><th>Status</th></tr></thead>
+      <thead><tr><th><%= t('order.date') %></th><th><%= t('partner.col_amount') %></th><th><%= t('order.status') %></th></tr></thead>
       <tbody>
         <% payoutRequests.forEach(function(p) { %>
-          <tr><td><%= p.requested_at %></td><td><%= p.amount.toFixed(2) %> ₼</td><td><%= p.status %></td></tr>
+          <tr><td><%= p.requested_at %></td><td><%= p.amount.toFixed(2) %> ₼</td><td><%= t('status.' + p.status) %></td></tr>
         <% }) %>
       </tbody>
     </table>

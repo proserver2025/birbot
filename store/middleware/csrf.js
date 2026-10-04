@@ -12,7 +12,9 @@ function rejectCsrf(res) {
   res.locals.brand = res.locals.brand || brand;
   res.locals.cartCount = res.locals.cartCount || 0;
   res.locals.customer = res.locals.customer || null;
-  return res.status(403).render('403', { title: 'Qadağan olundu', layout: 'layout' });
+  res.locals.lang = res.locals.lang || 'az';
+  res.locals.t = res.locals.t || ((key) => key);
+  return res.status(403).render('403', { title: res.locals.t('error.403_title'), layout: 'layout' });
 }
 
 function csrfMiddleware(req, res, next) {
