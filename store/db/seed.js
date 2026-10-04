@@ -31,13 +31,13 @@ function seedProducts() {
   }
   const cat = db.prepare('SELECT id FROM categories LIMIT 1').get();
   const sample = [
-    { name: 'Elektrik samovar 5L', price: 112.9, compare: 140, stock: 25 },
-    { name: 'Saç və saqqal trimmeri', price: 35.9, compare: 192.25, stock: 40 },
-    { name: 'Elektrik soba 48L', price: 193.4, compare: 408, stock: 10 },
+    { name: 'Elektrik samovar 5L', price: 112.9, compare: 140, stock: 25, cost: 78, supplier: 'Abşeron Ticarət Mərkəzi - nümunə topdançı' },
+    { name: 'Saç və saqqal trimmeri', price: 35.9, compare: 192.25, stock: 40, cost: 22, supplier: 'Abşeron Ticarət Mərkəzi - nümunə topdançı' },
+    { name: 'Elektrik soba 48L', price: 193.4, compare: 408, stock: 10, cost: 140, supplier: 'Abşeron Ticarət Mərkəzi - nümunə topdançı' },
   ];
   const insert = db.prepare(
-    `INSERT INTO products (name, slug, description, price, compare_at_price, stock, category_id, is_active, is_featured)
-     VALUES (?, ?, ?, ?, ?, ?, ?, 1, 1)`
+    `INSERT INTO products (name, slug, description, price, compare_at_price, stock, category_id, cost_price, supplier_name, is_active, is_featured)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1, 1)`
   );
   sample.forEach((p) => {
     insert.run(
@@ -47,7 +47,9 @@ function seedProducts() {
       p.price,
       p.compare,
       p.stock,
-      cat ? cat.id : null
+      cat ? cat.id : null,
+      p.cost,
+      p.supplier
     );
   });
   console.log('Nümunə məhsullar əlavə olundu.');

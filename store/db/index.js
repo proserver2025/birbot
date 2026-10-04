@@ -34,6 +34,8 @@ const migrations = [
   "ALTER TABLE orders ADD COLUMN bonus_status TEXT DEFAULT 'none'",
   "ALTER TABLE orders ADD COLUMN bonus_eligible_at DATETIME",
   "ALTER TABLE orders ADD COLUMN bonus_used REAL DEFAULT 0",
+  "ALTER TABLE products ADD COLUMN cost_price REAL NOT NULL DEFAULT 0",
+  "ALTER TABLE products ADD COLUMN supplier_name TEXT NOT NULL DEFAULT ''",
 ];
 for (const sql of migrations) {
   try { db.exec(sql); } catch (e) { /* column already exists */ }

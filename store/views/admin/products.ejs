@@ -4,7 +4,7 @@
 </div>
 <div class="admin-card">
   <table class="data-table">
-    <thead><tr><th>Şəkil</th><th>Ad</th><th>Kateqoriya</th><th>Qiymət</th><th>Stok</th><th>Aktiv</th><th></th></tr></thead>
+    <thead><tr><th>Şəkil</th><th>Ad</th><th>Kateqoriya</th><th>Qiymət</th><th>Maya</th><th>Mənfəət</th><th>Təchizatçı</th><th>Stok</th><th>Aktiv</th><th></th></tr></thead>
     <tbody>
       <% products.forEach(function(p) { %>
         <tr>
@@ -12,6 +12,9 @@
           <td><%= p.name %></td>
           <td><%= p.category_name || '—' %></td>
           <td><%= p.price.toFixed(2) %> ₼</td>
+          <td style="color:var(--muted);"><%= p.cost_price.toFixed(2) %> ₼</td>
+          <td style="color:<%= (p.price - p.cost_price) >= 0 ? 'var(--success)' : 'var(--danger)' %>;font-weight:600;"><%= (p.price - p.cost_price).toFixed(2) %> ₼</td>
+          <td style="font-size:12.5px;"><%= p.supplier_name || '—' %></td>
           <td><%= p.stock %></td>
           <td><%= p.is_active ? '✅' : '❌' %></td>
           <td style="display:flex;gap:6px;">

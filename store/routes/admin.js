@@ -96,16 +96,30 @@ router.get('/mehsullar', (req, res) => {
 
 router.get('/mehsullar/yeni', (req, res) => {
   const categories = db.prepare('SELECT * FROM categories ORDER BY sort_order').all();
-  res.render('admin/product-form', { title: 'Yeni məhsul', product: null, categories, layout: 'admin/layout' });
+  res.render('admin/product-form', { title: 'Yeni məhsul', product: null, categories, error: null, layout: 'admin/layout' });
 });
 
 router.post('/mehsullar/yeni', upload.single('image'), csrfMiddleware.afterUpload, (req, res) => {
-  const { name, description, price, compare_at_price, stock, category_id, is_active, is_featured, imported_image_url } = req.body;
+  const { name, description, price, compare_at_price, stock, category_id, is_active, is_featured, imported_image_url, cost_price, supplier_name } = req.body;
+
+  // Internal-only fields, but mandatory: every product must record what
+  // it actually cost and who it was bought from.
+  if (!cost_price || parseFloat(cost_price) <= 0 || !supplier_name || !supplier_name.trim()) {
+    const categories = db.prepare('SELECT * FROM categories ORDER BY sort_order').all();
+    return res.status(400).render('admin/product-form', {
+      title: 'Yeni məhsul',
+      product: { ...req.body, price: parseFloat(price) || 0 },
+      categories,
+      error: 'Maya dəyəri və təchizatçı/topdançı mağaza adı mütləqdir.',
+      layout: 'admin/layout',
+    });
+  }
+
   const slug = slugify(name, { lower: true, strict: true }) + '-' + Math.floor(Math.random() * 10000);
   const image_url = req.file ? '/uploads/' + req.file.filename : (imported_image_url || null);
   db.prepare(
-    `INSERT INTO products (name, slug, description, price, compare_at_price, stock, category_id, image_url, is_active, is_featured)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+    `INSERT INTO products (name, slug, description, price, compare_at_price, stock, category_id, image_url, is_active, is_featured, cost_price, supplier_name)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
   ).run(
     name,
     slug,
@@ -116,7 +130,9 @@ router.post('/mehsullar/yeni', upload.single('image'), csrfMiddleware.afterUploa
     category_id || null,
     image_url,
     is_active ? 1 : 0,
-    is_featured ? 1 : 0
+    is_featured ? 1 : 0,
+    parseFloat(cost_price),
+    supplier_name.trim()
   );
   res.redirect('/admin/mehsullar');
 });
@@ -125,16 +141,28 @@ router.get('/mehsullar/:id/redakte', (req, res) => {
   const product = db.prepare('SELECT * FROM products WHERE id = ?').get(req.params.id);
   if (!product) return res.redirect('/admin/mehsullar');
   const categories = db.prepare('SELECT * FROM categories ORDER BY sort_order').all();
-  res.render('admin/product-form', { title: 'Məhsulu redaktə et', product, categories, layout: 'admin/layout' });
+  res.render('admin/product-form', { title: 'Məhsulu redaktə et', product, categories, error: null, layout: 'admin/layout' });
 });
 
 router.post('/mehsullar/:id/redakte', upload.single('image'), csrfMiddleware.afterUpload, (req, res) => {
-  const { name, description, price, compare_at_price, stock, category_id, is_active, is_featured, imported_image_url } = req.body;
+  const { name, description, price, compare_at_price, stock, category_id, is_active, is_featured, imported_image_url, cost_price, supplier_name } = req.body;
   const existing = db.prepare('SELECT * FROM products WHERE id = ?').get(req.params.id);
   if (!existing) return res.redirect('/admin/mehsullar');
+
+  if (!cost_price || parseFloat(cost_price) <= 0 || !supplier_name || !supplier_name.trim()) {
+    const categories = db.prepare('SELECT * FROM categories ORDER BY sort_order').all();
+    return res.status(400).render('admin/product-form', {
+      title: 'Məhsulu redaktə et',
+      product: { ...existing, ...req.body },
+      categories,
+      error: 'Maya dəyəri və təchizatçı/topdançı mağaza adı mütləqdir.',
+      layout: 'admin/layout',
+    });
+  }
+
   const image_url = req.file ? '/uploads/' + req.file.filename : (imported_image_url || existing.image_url);
   db.prepare(
-    `UPDATE products SET name=?, description=?, price=?, compare_at_price=?, stock=?, category_id=?, image_url=?, is_active=?, is_featured=?
+    `UPDATE products SET name=?, description=?, price=?, compare_at_price=?, stock=?, category_id=?, image_url=?, is_active=?, is_featured=?, cost_price=?, supplier_name=?
      WHERE id=?`
   ).run(
     name,
@@ -146,6 +174,8 @@ router.post('/mehsullar/:id/redakte', upload.single('image'), csrfMiddleware.aft
     image_url,
     is_active ? 1 : 0,
     is_featured ? 1 : 0,
+    parseFloat(cost_price),
+    supplier_name.trim(),
     req.params.id
   );
   res.redirect('/admin/mehsullar');

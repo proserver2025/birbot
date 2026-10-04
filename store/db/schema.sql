@@ -43,6 +43,10 @@ CREATE TABLE IF NOT EXISTS products (
   image_url TEXT,
   is_active INTEGER DEFAULT 1,
   is_featured INTEGER DEFAULT 0,
+  -- Internal-only, never shown to customers: cost price and where it was
+  -- bought, so margin (price - cost_price) can be tracked per product.
+  cost_price REAL NOT NULL DEFAULT 0,
+  supplier_name TEXT NOT NULL DEFAULT '',
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (category_id) REFERENCES categories(id)
 );
