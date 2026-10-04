@@ -188,6 +188,37 @@ const dict = {
     en: 'A phone number is required to place an order.',
   },
   'auth.phone_save_btn': { az: 'Yadda saxla və davam et', ru: 'Сохранить и продолжить', en: 'Save and continue' },
+  'auth.err_required_fields': { az: 'Bütün vacib sahələri doldurun.', ru: 'Заполните все обязательные поля.', en: 'Please fill in all required fields.' },
+  'auth.err_phone_invalid_courier': {
+    az: 'Düzgün telefon nömrəsi daxil edin (kuryer sizinlə əlaqə saxlamaq üçün lazımdır).',
+    ru: 'Введите корректный номер телефона (он нужен курьеру для связи с вами).',
+    en: 'Please enter a valid phone number (the courier needs it to reach you).',
+  },
+  'auth.err_password_short': { az: 'Parol ən azı 6 simvol olmalıdır.', ru: 'Пароль должен содержать не менее 6 символов.', en: 'Password must be at least 6 characters.' },
+  'auth.err_email_exists': { az: 'Bu email ilə artıq hesab var.', ru: 'Аккаунт с этим email уже существует.', en: 'An account with this email already exists.' },
+  'auth.err_login_invalid': { az: 'Email və ya parol yanlışdır.', ru: 'Неверный email или пароль.', en: 'Incorrect email or password.' },
+  'auth.err_blocked': {
+    az: 'Bu hesab bloklanıb. Suallarınız varsa bizimlə əlaqə saxlayın.',
+    ru: 'Этот аккаунт заблокирован. Если у вас есть вопросы, свяжитесь с нами.',
+    en: 'This account has been blocked. Please contact us if you have questions.',
+  },
+  'auth.err_locked': {
+    az: 'Çox sayda yanlış cəhd. {minutes} dəqiqə sonra yenidən sınayın.',
+    ru: 'Слишком много неудачных попыток. Повторите через {minutes} минут.',
+    en: 'Too many failed attempts. Try again in {minutes} minutes.',
+  },
+  'auth.err_google_only': {
+    az: 'Bu hesab Google ilə qeydiyyatdan keçib. "Google ilə daxil ol" düyməsini istifadə edin.',
+    ru: 'Этот аккаунт был создан через Google. Используйте кнопку «Войти через Google».',
+    en: 'This account was created with Google. Please use the "Continue with Google" button.',
+  },
+  'auth.err_google_failed': { az: 'Google ilə giriş alınmadı', ru: 'Не удалось войти через Google', en: 'Google sign-in failed' },
+  'auth.err_phone_invalid': { az: 'Düzgün telefon nömrəsi daxil edin.', ru: 'Введите корректный номер телефона.', en: 'Please enter a valid phone number.' },
+  'auth.err_rate_limited': {
+    az: 'Çox sayda cəhd edildi. Bir az sonra yenidən sınayın.',
+    ru: 'Слишком много попыток. Попробуйте снова чуть позже.',
+    en: 'Too many attempts. Please try again shortly.',
+  },
 
   // --- Partner page ---
   'partner.title': { az: 'Tərəfdaşlıq proqramı', ru: 'Партнёрская программа', en: 'Partner program' },
@@ -217,6 +248,16 @@ const dict = {
   'partner.col_product_amount': { az: 'Məhsul məbləği', ru: 'Сумма товаров', en: 'Item amount' },
   'partner.col_commission': { az: 'Komissiya', ru: 'Комиссия', en: 'Commission' },
   'partner.col_amount': { az: 'Məbləğ', ru: 'Сумма', en: 'Amount' },
+  'partner.err_min_threshold': {
+    az: 'Minimum çıxarış həddi {threshold} ₼-dir, hələ ona çatmamısınız.',
+    ru: 'Минимальная сумма для вывода — {threshold} ₼, вы пока её не достигли.',
+    en: "The minimum payout threshold is {threshold} ₼ — you haven't reached it yet.",
+  },
+  'partner.success_payout_requested': {
+    az: 'Çıxarış sorğusu göndərildi. Admin təsdiqlədikdən sonra ödəniş ediləcək.',
+    ru: 'Запрос на вывод отправлен. Выплата будет произведена после подтверждения администратором.',
+    en: 'Your payout request has been sent. It will be paid once an admin approves it.',
+  },
 
   // --- Order confirmation ---
   'done.title': { az: '✅ Sifariş qəbul olundu!', ru: '✅ Заказ принят!', en: '✅ Order received!' },
@@ -321,4 +362,22 @@ function i18nMiddleware(req, res, next) {
   next();
 }
 
-module.exports = { i18nMiddleware, translate, LOCALES, DEFAULT_LOCALE };
+// Picks the product's name/description for the active locale, falling
+// back to the required Azerbaijani fields when a translation is blank.
+// Returns a shallow copy so the raw DB row (with name_ru/name_en etc.)
+// stays untouched for admin use.
+function localizeProduct(product, locale) {
+  if (!product) return product;
+  const localized = Object.assign({}, product);
+  if (locale === 'ru' && product.name_ru) localized.name = product.name_ru;
+  else if (locale === 'en' && product.name_en) localized.name = product.name_en;
+  if (locale === 'ru' && product.description_ru) localized.description = product.description_ru;
+  else if (locale === 'en' && product.description_en) localized.description = product.description_en;
+  return localized;
+}
+
+function localizeProducts(products, locale) {
+  return products.map((p) => localizeProduct(p, locale));
+}
+
+module.exports = { i18nMiddleware, translate, localizeProduct, localizeProducts, LOCALES, DEFAULT_LOCALE };

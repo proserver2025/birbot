@@ -113,7 +113,7 @@ function resolveSupplierId(body) {
 }
 
 router.post('/mehsullar/yeni', upload.single('image'), csrfMiddleware.afterUpload, (req, res) => {
-  const { name, description, price, compare_at_price, stock, category_id, is_active, is_featured, imported_image_url, cost_price } = req.body;
+  const { name, description, name_ru, name_en, description_ru, description_en, price, compare_at_price, stock, category_id, is_active, is_featured, imported_image_url, cost_price } = req.body;
   const supplierId = resolveSupplierId(req.body);
 
   // Internal-only fields, but mandatory: every product must record what
@@ -135,8 +135,8 @@ router.post('/mehsullar/yeni', upload.single('image'), csrfMiddleware.afterUploa
   const slug = slugify(name, { lower: true, strict: true }) + '-' + Math.floor(Math.random() * 10000);
   const image_url = req.file ? '/uploads/' + req.file.filename : (imported_image_url || null);
   db.prepare(
-    `INSERT INTO products (name, slug, description, price, compare_at_price, stock, category_id, image_url, is_active, is_featured, cost_price, supplier_name, supplier_id)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+    `INSERT INTO products (name, slug, description, price, compare_at_price, stock, category_id, image_url, is_active, is_featured, cost_price, supplier_name, supplier_id, name_ru, name_en, description_ru, description_en)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
   ).run(
     name,
     slug,
@@ -150,7 +150,11 @@ router.post('/mehsullar/yeni', upload.single('image'), csrfMiddleware.afterUploa
     is_featured ? 1 : 0,
     parseFloat(cost_price),
     supplierName,
-    supplierId
+    supplierId,
+    (name_ru || '').trim() || null,
+    (name_en || '').trim() || null,
+    (description_ru || '').trim() || null,
+    (description_en || '').trim() || null
   );
   res.redirect('/admin/mehsullar');
 });
@@ -164,7 +168,7 @@ router.get('/mehsullar/:id/redakte', (req, res) => {
 });
 
 router.post('/mehsullar/:id/redakte', upload.single('image'), csrfMiddleware.afterUpload, (req, res) => {
-  const { name, description, price, compare_at_price, stock, category_id, is_active, is_featured, imported_image_url, cost_price } = req.body;
+  const { name, description, name_ru, name_en, description_ru, description_en, price, compare_at_price, stock, category_id, is_active, is_featured, imported_image_url, cost_price } = req.body;
   const existing = db.prepare('SELECT * FROM products WHERE id = ?').get(req.params.id);
   if (!existing) return res.redirect('/admin/mehsullar');
   const supplierId = resolveSupplierId(req.body);
@@ -185,7 +189,7 @@ router.post('/mehsullar/:id/redakte', upload.single('image'), csrfMiddleware.aft
 
   const image_url = req.file ? '/uploads/' + req.file.filename : (imported_image_url || existing.image_url);
   db.prepare(
-    `UPDATE products SET name=?, description=?, price=?, compare_at_price=?, stock=?, category_id=?, image_url=?, is_active=?, is_featured=?, cost_price=?, supplier_name=?, supplier_id=?
+    `UPDATE products SET name=?, description=?, price=?, compare_at_price=?, stock=?, category_id=?, image_url=?, is_active=?, is_featured=?, cost_price=?, supplier_name=?, supplier_id=?, name_ru=?, name_en=?, description_ru=?, description_en=?
      WHERE id=?`
   ).run(
     name,
@@ -200,6 +204,10 @@ router.post('/mehsullar/:id/redakte', upload.single('image'), csrfMiddleware.aft
     parseFloat(cost_price),
     supplierName,
     supplierId,
+    (name_ru || '').trim() || null,
+    (name_en || '').trim() || null,
+    (description_ru || '').trim() || null,
+    (description_en || '').trim() || null,
     req.params.id
   );
   res.redirect('/admin/mehsullar');

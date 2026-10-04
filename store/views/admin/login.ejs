@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title><%= title %></title>
+  <link rel="icon" type="image/x-icon" href="/public/favicon.ico">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,500;0,9..144,600;0,9..144,700;1,9..144,500&family=Figtree:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -12,7 +13,8 @@
 <body>
   <div class="login-screen">
     <div class="form-card">
-      <h1>🔐 Admin Panel</h1>
+      <div style="text-align:center;margin-bottom:10px;"><img src="/public/images/logo.jpg" alt="SaaS Home" style="height:64px;width:64px;border-radius:50%;object-fit:cover;"></div>
+      <h1 style="text-align:center;">Admin Panel</h1>
       <% if (error) { %><div class="form-error"><%= error %></div><% } %>
       <form action="/admin/login" method="post">
         <input type="hidden" name="_csrf" value="<%= csrfToken %>">

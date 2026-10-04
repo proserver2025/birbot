@@ -67,6 +67,13 @@ CREATE TABLE IF NOT EXISTS products (
   cost_price REAL NOT NULL DEFAULT 0,
   supplier_name TEXT NOT NULL DEFAULT '', -- kept for display/legacy; supplier_id is the real link now
   supplier_id INTEGER,
+  -- Optional Russian/English translations; `name`/`description` (above) are
+  -- the required Azerbaijani source of truth and the fallback when a
+  -- translation is left blank.
+  name_ru TEXT,
+  name_en TEXT,
+  description_ru TEXT,
+  description_en TEXT,
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (category_id) REFERENCES categories(id),
   FOREIGN KEY (supplier_id) REFERENCES suppliers(id)

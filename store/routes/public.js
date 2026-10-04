@@ -5,6 +5,7 @@ const db = require('../db');
 const brand = require('../config/brand');
 const google = require('../config/google');
 const settings = require('../config/settings');
+const { localizeProduct, localizeProducts } = require('../config/i18n');
 const shipping = require('../lib/shipping');
 const affiliates = require('../lib/affiliates');
 const bonus = require('../lib/bonus');
@@ -20,7 +21,7 @@ const authLimiter = rateLimit({
   max: 10,
   standardHeaders: true,
   legacyHeaders: false,
-  message: 'Çox sayda cəhd edildi. Bir az sonra yenidən sınayın.',
+  handler: (req, res) => res.status(429).send(res.locals.t('auth.err_rate_limited')),
 });
 
 router.use((req, res, next) => {
@@ -46,12 +47,14 @@ router.use((req, res, next) => {
 // Home
 router.get('/', (req, res) => {
   const categories = db.prepare('SELECT * FROM categories ORDER BY sort_order').all();
-  const featured = db
-    .prepare('SELECT * FROM products WHERE is_active = 1 AND is_featured = 1 ORDER BY created_at DESC LIMIT 8')
-    .all();
-  const latest = db
-    .prepare('SELECT * FROM products WHERE is_active = 1 ORDER BY created_at DESC LIMIT 12')
-    .all();
+  const featured = localizeProducts(
+    db.prepare('SELECT * FROM products WHERE is_active = 1 AND is_featured = 1 ORDER BY created_at DESC LIMIT 8').all(),
+    res.locals.lang
+  );
+  const latest = localizeProducts(
+    db.prepare('SELECT * FROM products WHERE is_active = 1 ORDER BY created_at DESC LIMIT 12').all(),
+    res.locals.lang
+  );
   res.render('home', { categories, featured, latest, title: res.locals.t('page.home_title') });
 });
 
@@ -65,9 +68,10 @@ router.get('/haqqimizda', (req, res) => {
 router.get('/kateqoriya/:slug', (req, res) => {
   const category = db.prepare('SELECT * FROM categories WHERE slug = ?').get(req.params.slug);
   if (!category) return res.status(404).render('404', { title: res.locals.t('error.404_title') });
-  const products = db
-    .prepare('SELECT * FROM products WHERE category_id = ? AND is_active = 1 ORDER BY created_at DESC')
-    .all(category.id);
+  const products = localizeProducts(
+    db.prepare('SELECT * FROM products WHERE category_id = ? AND is_active = 1 ORDER BY created_at DESC').all(category.id),
+    res.locals.lang
+  );
   const categories = db.prepare('SELECT * FROM categories ORDER BY sort_order').all();
   res.render('category', { category, products, categories, title: category.name });
 });
@@ -78,29 +82,35 @@ router.get('/mehsullar', (req, res) => {
   let products;
   if (q) {
     products = db
-      .prepare('SELECT * FROM products WHERE is_active = 1 AND name LIKE ? ORDER BY created_at DESC')
-      .all(`%${q}%`);
+      .prepare(
+        'SELECT * FROM products WHERE is_active = 1 AND (name LIKE ? OR name_ru LIKE ? OR name_en LIKE ?) ORDER BY created_at DESC'
+      )
+      .all(`%${q}%`, `%${q}%`, `%${q}%`);
   } else {
     products = db.prepare('SELECT * FROM products WHERE is_active = 1 ORDER BY created_at DESC').all();
   }
+  products = localizeProducts(products, res.locals.lang);
   const categories = db.prepare('SELECT * FROM categories ORDER BY sort_order').all();
   res.render('products', { products, categories, q, title: res.locals.t('products.title') });
 });
 
 // Product detail
 router.get('/mehsul/:slug', (req, res) => {
-  const product = db.prepare('SELECT * FROM products WHERE slug = ?').get(req.params.slug);
+  let product = db.prepare('SELECT * FROM products WHERE slug = ?').get(req.params.slug);
   if (!product) return res.status(404).render('404', { title: res.locals.t('error.404_title') });
-  const related = db
-    .prepare('SELECT * FROM products WHERE category_id = ? AND id != ? AND is_active = 1 LIMIT 4')
-    .all(product.category_id, product.id);
+  product = localizeProduct(product, res.locals.lang);
+  const related = localizeProducts(
+    db.prepare('SELECT * FROM products WHERE category_id = ? AND id != ? AND is_active = 1 LIMIT 4').all(product.category_id, product.id),
+    res.locals.lang
+  );
   res.render('product', { product, related, title: product.name });
 });
 
 // --- Cart (session-based) ---
 router.post('/sebet/elave/:id', (req, res) => {
-  const product = db.prepare('SELECT * FROM products WHERE id = ?').get(req.params.id);
+  let product = db.prepare('SELECT * FROM products WHERE id = ?').get(req.params.id);
   if (!product) return res.redirect('/mehsullar');
+  product = localizeProduct(product, res.locals.lang);
   const qty = Math.max(1, parseInt(req.body.qty, 10) || 1);
   req.session.cart = req.session.cart || [];
   const existing = req.session.cart.find((i) => i.id === product.id);
@@ -226,14 +236,14 @@ router.post('/qeydiyyat', authLimiter, (req, res) => {
   const { full_name, email, phone, password } = req.body;
   const fail = (msg) => res.render('register', { title: res.locals.t('auth.register_title'), error: msg, googleClientId: google.GOOGLE_CLIENT_ID });
 
-  if (!full_name || !email || !password) return fail('Bütün vacib sahələri doldurun.');
+  if (!full_name || !email || !password) return fail(res.locals.t('auth.err_required_fields'));
   // Phone is mandatory (courier needs it), kept to a loose but real check
   // so it stays easy to fill in on mobile — no strict format enforced.
   const cleanPhone = (phone || '').replace(/[^\d+]/g, '');
-  if (cleanPhone.length < 9) return fail('Düzgün telefon nömrəsi daxil edin (kuryer sizinlə əlaqə saxlamaq üçün lazımdır).');
-  if (password.length < 6) return fail('Parol ən azı 6 simvol olmalıdır.');
+  if (cleanPhone.length < 9) return fail(res.locals.t('auth.err_phone_invalid_courier'));
+  if (password.length < 6) return fail(res.locals.t('auth.err_password_short'));
   const existing = db.prepare('SELECT id FROM customers WHERE email = ?').get(email);
-  if (existing) return fail('Bu email ilə artıq hesab var.');
+  if (existing) return fail(res.locals.t('auth.err_email_exists'));
 
   const hash = bcrypt.hashSync(password, 10);
   const result = db
@@ -254,14 +264,14 @@ router.post('/giris', authLimiter, (req, res) => {
   const fail = (msg) => res.render('login', { title: res.locals.t('auth.login_title'), error: msg, redirect, googleClientId: google.GOOGLE_CLIENT_ID });
 
   const customer = db.prepare('SELECT * FROM customers WHERE email = ?').get(email);
-  if (!customer) return fail('Email və ya parol yanlışdır.');
-  if (customer.is_blocked) return fail('Bu hesab bloklanıb. Suallarınız varsa bizimlə əlaqə saxlayın.');
-  if (isLocked(customer)) return fail(`Çox sayda yanlış cəhd. ${LOCK_MINUTES} dəqiqə sonra yenidən sınayın.`);
-  if (!customer.password_hash) return fail('Bu hesab Google ilə qeydiyyatdan keçib. "Google ilə daxil ol" düyməsini istifadə edin.');
+  if (!customer) return fail(res.locals.t('auth.err_login_invalid'));
+  if (customer.is_blocked) return fail(res.locals.t('auth.err_blocked'));
+  if (isLocked(customer)) return fail(res.locals.t('auth.err_locked', { minutes: LOCK_MINUTES }));
+  if (!customer.password_hash) return fail(res.locals.t('auth.err_google_only'));
 
   if (!bcrypt.compareSync(password, customer.password_hash)) {
     registerFailure(db, 'customers', customer.id, customer.failed_login_count);
-    return fail('Email və ya parol yanlışdır.');
+    return fail(res.locals.t('auth.err_login_invalid'));
   }
   resetFailures(db, 'customers', customer.id);
   req.session.customerId = customer.id;
@@ -277,7 +287,7 @@ router.post('/auth/google', authLimiter, async (req, res) => {
     const { email, name, googleId } = await google.verifyGoogleToken(req.body.credential);
     let customer = db.prepare('SELECT * FROM customers WHERE google_id = ? OR email = ?').get(googleId, email);
     if (customer && customer.is_blocked) {
-      return res.render('login', { title: res.locals.t('auth.login_title'), error: 'Bu hesab bloklanıb. Suallarınız varsa bizimlə əlaqə saxlayın.', redirect, googleClientId: google.GOOGLE_CLIENT_ID });
+      return res.render('login', { title: res.locals.t('auth.login_title'), error: res.locals.t('auth.err_blocked'), redirect, googleClientId: google.GOOGLE_CLIENT_ID });
     }
     if (!customer) {
       const result = db
@@ -295,7 +305,7 @@ router.post('/auth/google', authLimiter, async (req, res) => {
     }
     res.redirect(redirect);
   } catch (err) {
-    res.render('login', { title: res.locals.t('auth.login_title'), error: 'Google ilə giriş alınmadı: ' + err.message, redirect, googleClientId: google.GOOGLE_CLIENT_ID });
+    res.render('login', { title: res.locals.t('auth.login_title'), error: res.locals.t('auth.err_google_failed') + ': ' + err.message, redirect, googleClientId: google.GOOGLE_CLIENT_ID });
   }
 });
 
@@ -310,7 +320,7 @@ router.get('/telefon-elave-et', requireCustomer, (req, res) => {
 router.post('/telefon-elave-et', requireCustomer, (req, res) => {
   const cleanPhone = (req.body.phone || '').replace(/[^\d+]/g, '');
   if (cleanPhone.length < 9) {
-    return res.render('add-phone', { title: res.locals.t('auth.phone_title'), error: 'Düzgün telefon nömrəsi daxil edin.', redirect: req.body.redirect || '/' });
+    return res.render('add-phone', { title: res.locals.t('auth.phone_title'), error: res.locals.t('auth.err_phone_invalid'), redirect: req.body.redirect || '/' });
   }
   db.prepare('UPDATE customers SET phone = ? WHERE id = ?').run(cleanPhone, req.session.customerId);
   res.redirect(req.body.redirect || '/');
@@ -388,7 +398,7 @@ router.post('/tereflik/cek', requireCustomer, (req, res) => {
       commissionPercent,
       holdDays,
       title: res.locals.t('partner.title'),
-      error: `Minimum çıxarış həddi ${summary.threshold} ₼-dir, hələ ona çatmamısınız.`,
+      error: res.locals.t('partner.err_min_threshold', { threshold: summary.threshold }),
       success: null,
     });
   }
@@ -401,7 +411,7 @@ router.post('/tereflik/cek', requireCustomer, (req, res) => {
     holdDays,
     title: res.locals.t('partner.title'),
     error: null,
-    success: 'Çıxarış sorğusu göndərildi. Admin təsdiqlədikdən sonra ödəniş ediləcək.',
+    success: res.locals.t('partner.success_payout_requested'),
   });
 });
 
