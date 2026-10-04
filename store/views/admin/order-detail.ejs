@@ -5,6 +5,7 @@
   <p><strong>Ünvan:</strong> <%= order.customer_address %></p>
   <p><strong>Tarix:</strong> <%= order.created_at %></p>
   <form action="/admin/sifarisler/<%= order.id %>/status" method="post" style="display:flex;gap:10px;align-items:center;margin-top:14px;">
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
     <label>Status:</label>
     <select name="status">
       <% ['yeni','hazirlanir','gonderildi','tamamlandi','legv_edildi'].forEach(function(s) { %>

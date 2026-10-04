@@ -1,10 +1,26 @@
 <div class="admin-topbar"><h1><%= product ? 'Məhsulu redaktə et' : 'Yeni məhsul' %></h1></div>
+
 <div class="admin-card" style="max-width:600px;">
-  <form action="<%= product ? ('/admin/mehsullar/' + product.id + '/redakte') : '/admin/mehsullar/yeni' %>" method="post" enctype="multipart/form-data">
-    <div class="form-group"><label>Ad</label><input type="text" name="name" value="<%= product ? product.name : '' %>" required></div>
-    <div class="form-group"><label>Təsvir</label><textarea name="description" rows="4"><%= product ? product.description : '' %></textarea></div>
-    <div class="form-group"><label>Qiymət (₼)</label><input type="number" step="0.01" name="price" value="<%= product ? product.price : '' %>" required></div>
-    <div class="form-group"><label>Əvvəlki qiymət (endirim üçün, boş saxlaya bilərsiniz)</label><input type="number" step="0.01" name="compare_at_price" value="<%= product && product.compare_at_price ? product.compare_at_price : '' %>"></div>
+  <h3>🔗 Başqa saytdan idxal et</h3>
+  <p style="color:var(--muted);font-size:13.5px;margin-top:-6px;">
+    Məhsul linkini (Birmarket, Umico, Lalafo, Trendyol və s.) yapışdır — başlıq, şəkil, qiymət və
+    təsviri avtomatik çəkib aşağıdakı formu dolduracaq. Nəticəni göndərmədən əvvəl mütləq yoxla.
+  </p>
+  <div style="display:flex;gap:10px;">
+    <input type="url" id="importUrl" placeholder="https://..." style="flex:1;padding:11px 13px;border:1.5px solid var(--border);border-radius:10px;font-size:14px;">
+    <button type="button" class="btn" id="importBtn" onclick="importFromUrl()">Çək</button>
+  </div>
+  <div id="importStatus" style="margin-top:10px;font-size:13.5px;"></div>
+</div>
+
+<div class="admin-card" style="max-width:600px;">
+  <form id="productForm" action="<%= product ? ('/admin/mehsullar/' + product.id + '/redakte') : '/admin/mehsullar/yeni' %>" method="post" enctype="multipart/form-data">
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+    <input type="hidden" name="imported_image_url" id="importedImageUrl" value="">
+    <div class="form-group"><label>Ad</label><input type="text" name="name" id="f_name" value="<%= product ? product.name : '' %>" required></div>
+    <div class="form-group"><label>Təsvir</label><textarea name="description" id="f_description" rows="4"><%= product ? product.description : '' %></textarea></div>
+    <div class="form-group"><label>Qiymət (₼)</label><input type="number" step="0.01" name="price" id="f_price" value="<%= product ? product.price : '' %>" required></div>
+    <div class="form-group"><label>Əvvəlki qiymət (endirim üçün, boş saxlaya bilərsiniz)</label><input type="number" step="0.01" name="compare_at_price" id="f_compare" value="<%= product && product.compare_at_price ? product.compare_at_price : '' %>"></div>
     <div class="form-group"><label>Stok (say)</label><input type="number" name="stock" value="<%= product ? product.stock : 0 %>" required></div>
     <div class="form-group">
       <label>Kateqoriya</label>
@@ -15,7 +31,8 @@
         <% }) %>
       </select>
     </div>
-    <div class="form-group"><label>Şəkil</label><input type="file" name="image" accept="image/*">
+    <div class="form-group"><label>Şəkil (manual yükləmə — idxal etsən boş saxlaya bilərsən)</label><input type="file" name="image" accept="image/*">
+      <img id="importedImagePreview" style="width:80px;margin-top:8px;border-radius:6px;display:none;">
       <% if (product && product.image_url) { %><img src="<%= product.image_url %>" style="width:80px;margin-top:8px;border-radius:6px;"><% } %>
     </div>
     <div class="form-group">
@@ -27,3 +44,38 @@
     <button class="btn" type="submit">Yadda saxla</button>
   </form>
 </div>
+
+<script>
+  async function importFromUrl() {
+    const url = document.getElementById('importUrl').value.trim();
+    const statusEl = document.getElementById('importStatus');
+    const btn = document.getElementById('importBtn');
+    if (!url) { statusEl.textContent = 'Zəhmət olmasa bir link yapışdır.'; return; }
+    btn.disabled = true;
+    statusEl.textContent = 'Çəkilir...';
+    try {
+      const res = await fetch('/admin/mehsullar/idxal', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': '<%= csrfToken %>' },
+        body: JSON.stringify({ url })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Xəta baş verdi');
+      if (data.name) document.getElementById('f_name').value = data.name;
+      if (data.description) document.getElementById('f_description').value = data.description;
+      if (data.price) document.getElementById('f_price').value = data.price;
+      if (data.compare_at_price) document.getElementById('f_compare').value = data.compare_at_price;
+      if (data.image_url) {
+        document.getElementById('importedImageUrl').value = data.image_url;
+        const img = document.getElementById('importedImagePreview');
+        img.src = data.image_url;
+        img.style.display = 'block';
+      }
+      statusEl.innerHTML = '<span style="color:var(--success);font-weight:600;">✓ Çəkildi — yoxlayıb "Yadda saxla" bas.</span>';
+    } catch (err) {
+      statusEl.innerHTML = '<span style="color:var(--danger);">Alınmadı: ' + err.message + '</span>';
+    } finally {
+      btn.disabled = false;
+    }
+  }
+</script>

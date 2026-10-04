@@ -17,6 +17,7 @@
           <td style="display:flex;gap:6px;">
             <a class="btn btn-sm btn-outline" href="/admin/mehsullar/<%= p.id %>/redakte">Redaktə</a>
             <form action="/admin/mehsullar/<%= p.id %>/sil" method="post" onsubmit="return confirm('Silinsin?');">
+              <input type="hidden" name="_csrf" value="<%= csrfToken %>">
               <button class="btn btn-sm btn-danger" type="submit">Sil</button>
             </form>
           </td>

@@ -20,6 +20,7 @@
       <a href="/admin/musteriler">👥 Müştərilər</a>
       <a href="/" target="_blank">🔗 Saytı gör</a>
       <form action="/admin/logout" method="post" style="margin-top:20px;">
+        <input type="hidden" name="_csrf" value="<%= csrfToken %>">
         <button class="btn btn-sm btn-outline" style="width:calc(100% - 40px);margin-left:20px;" type="submit">Çıxış</button>
       </form>
     </aside>

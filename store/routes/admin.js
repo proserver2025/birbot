@@ -2,32 +2,53 @@ const express = require('express');
 const bcrypt = require('bcryptjs');
 const multer = require('multer');
 const path = require('path');
+const fs = require('fs');
+const dns = require('dns').promises;
+const net = require('net');
 const slugify = require('slugify');
+const cheerio = require('cheerio');
+const rateLimit = require('express-rate-limit');
 const db = require('../db');
+const csrfMiddleware = require('../middleware/csrf');
 const { requireAdmin } = require('../middleware/auth');
+const { isLocked, registerFailure, resetFailures, LOCK_MINUTES } = require('../middleware/loginGuard');
 
 const router = express.Router();
 
+const UPLOAD_DIR = path.join(__dirname, '..', 'public', 'uploads');
+
 const upload = multer({
   storage: multer.diskStorage({
-    destination: path.join(__dirname, '..', 'public', 'uploads'),
+    destination: UPLOAD_DIR,
     filename: (req, file, cb) => {
-      const ext = path.extname(file.originalname);
+      const ext = path.extname(file.originalname).toLowerCase();
       cb(null, Date.now() + '-' + Math.round(Math.random() * 1e9) + ext);
     },
   }),
   limits: { fileSize: 5 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => {
+    const ok = /^image\/(jpeg|png|webp|gif)$/.test(file.mimetype);
+    cb(ok ? null : new Error('Yalnız şəkil faylları (jpg, png, webp, gif) qəbul olunur'), ok);
+  },
 });
+
+const loginLimiter = rateLimit({ windowMs: 10 * 60 * 1000, max: 15, standardHeaders: true, legacyHeaders: false });
 
 // --- Admin auth ---
 router.get('/login', (req, res) => res.render('admin/login', { title: 'Admin Giriş', error: null, layout: false }));
 
-router.post('/login', (req, res) => {
+router.post('/login', loginLimiter, (req, res) => {
   const { username, password } = req.body;
+  const fail = (msg) => res.render('admin/login', { title: 'Admin Giriş', error: msg, layout: false });
+
   const admin = db.prepare('SELECT * FROM admins WHERE username = ?').get(username);
-  if (!admin || !bcrypt.compareSync(password, admin.password_hash)) {
-    return res.render('admin/login', { title: 'Admin Giriş', error: 'İstifadəçi adı və ya parol yanlışdır.', layout: false });
+  if (!admin) return fail('İstifadəçi adı və ya parol yanlışdır.');
+  if (isLocked(admin)) return fail(`Çox sayda yanlış cəhd. ${LOCK_MINUTES} dəqiqə sonra yenidən sınayın.`);
+  if (!bcrypt.compareSync(password, admin.password_hash)) {
+    registerFailure(db, 'admins', admin.id, admin.failed_login_count);
+    return fail('İstifadəçi adı və ya parol yanlışdır.');
   }
+  resetFailures(db, 'admins', admin.id);
   req.session.adminId = admin.id;
   res.redirect('/admin');
 });
@@ -45,7 +66,7 @@ router.get('/', (req, res) => {
     products: db.prepare('SELECT COUNT(*) c FROM products').get().c,
     orders: db.prepare('SELECT COUNT(*) c FROM orders').get().c,
     customers: db.prepare('SELECT COUNT(*) c FROM customers').get().c,
-    revenue: db.prepare("SELECT COALESCE(SUM(total),0) s FROM orders WHERE status != 'ləğv edildi'").get().s,
+    revenue: db.prepare("SELECT COALESCE(SUM(total),0) s FROM orders WHERE status != 'legv_edildi'").get().s,
   };
   const recentOrders = db.prepare('SELECT * FROM orders ORDER BY created_at DESC LIMIT 10').all();
   res.render('admin/dashboard', { title: 'Admin Panel', stats, recentOrders, layout: 'admin/layout' });
@@ -68,10 +89,10 @@ router.get('/mehsullar/yeni', (req, res) => {
   res.render('admin/product-form', { title: 'Yeni məhsul', product: null, categories, layout: 'admin/layout' });
 });
 
-router.post('/mehsullar/yeni', upload.single('image'), (req, res) => {
-  const { name, description, price, compare_at_price, stock, category_id, is_active, is_featured } = req.body;
+router.post('/mehsullar/yeni', upload.single('image'), csrfMiddleware.afterUpload, (req, res) => {
+  const { name, description, price, compare_at_price, stock, category_id, is_active, is_featured, imported_image_url } = req.body;
   const slug = slugify(name, { lower: true, strict: true }) + '-' + Math.floor(Math.random() * 10000);
-  const image_url = req.file ? '/uploads/' + req.file.filename : null;
+  const image_url = req.file ? '/uploads/' + req.file.filename : (imported_image_url || null);
   db.prepare(
     `INSERT INTO products (name, slug, description, price, compare_at_price, stock, category_id, image_url, is_active, is_featured)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
@@ -97,11 +118,11 @@ router.get('/mehsullar/:id/redakte', (req, res) => {
   res.render('admin/product-form', { title: 'Məhsulu redaktə et', product, categories, layout: 'admin/layout' });
 });
 
-router.post('/mehsullar/:id/redakte', upload.single('image'), (req, res) => {
-  const { name, description, price, compare_at_price, stock, category_id, is_active, is_featured } = req.body;
+router.post('/mehsullar/:id/redakte', upload.single('image'), csrfMiddleware.afterUpload, (req, res) => {
+  const { name, description, price, compare_at_price, stock, category_id, is_active, is_featured, imported_image_url } = req.body;
   const existing = db.prepare('SELECT * FROM products WHERE id = ?').get(req.params.id);
   if (!existing) return res.redirect('/admin/mehsullar');
-  const image_url = req.file ? '/uploads/' + req.file.filename : existing.image_url;
+  const image_url = req.file ? '/uploads/' + req.file.filename : (imported_image_url || existing.image_url);
   db.prepare(
     `UPDATE products SET name=?, description=?, price=?, compare_at_price=?, stock=?, category_id=?, image_url=?, is_active=?, is_featured=?
      WHERE id=?`
@@ -123,6 +144,118 @@ router.post('/mehsullar/:id/redakte', upload.single('image'), (req, res) => {
 router.post('/mehsullar/:id/sil', (req, res) => {
   db.prepare('DELETE FROM products WHERE id = ?').run(req.params.id);
   res.redirect('/admin/mehsullar');
+});
+
+// --- Məhsul idxalı (URL-dən) ---
+// SSRF guard: only http/https, and the resolved IP must not be private/
+// loopback/link-local, so an admin can't be tricked into making the
+// server fetch internal infrastructure.
+async function assertSafeUrl(rawUrl) {
+  const u = new URL(rawUrl);
+  if (!['http:', 'https:'].includes(u.protocol)) throw new Error('Yalnız http/https linkləri dəstəklənir');
+  const { address, family } = await dns.lookup(u.hostname);
+  if (net.isIP(address) === 0) throw new Error('Host ünvanı həll olunmadı');
+  const isPrivateV4 =
+    family === 4 &&
+    (/^10\./.test(address) || /^192\.168\./.test(address) || /^127\./.test(address) ||
+     /^169\.254\./.test(address) || /^172\.(1[6-9]|2\d|3[01])\./.test(address) || address === '0.0.0.0');
+  const isPrivateV6 = family === 6 && (address === '::1' || /^fc|^fd|^fe80/i.test(address));
+  if (isPrivateV4 || isPrivateV6) throw new Error('Daxili şəbəkə ünvanlarına sorğu qadağandır');
+  return u;
+}
+
+function extractProductData(html, baseUrl) {
+  const $ = cheerio.load(html);
+  const meta = (name) => $(`meta[property="${name}"]`).attr('content') || $(`meta[name="${name}"]`).attr('content');
+
+  let name = meta('og:title') || $('title').first().text() || '';
+  name = name.trim().slice(0, 200);
+
+  let description = meta('og:description') || meta('description') || '';
+  description = description.trim().slice(0, 1000);
+
+  let image = meta('og:image');
+  if (image) {
+    try { image = new URL(image, baseUrl).href; } catch (e) { image = null; }
+  }
+
+  let price = null;
+  let comparePrice = null;
+
+  // Try schema.org JSON-LD first — most e-commerce sites include it.
+  $('script[type="application/ld+json"]').each((i, el) => {
+    if (price) return;
+    try {
+      let data = JSON.parse($(el).contents().text());
+      if (Array.isArray(data)) data = data.find((d) => d && (d['@type'] === 'Product' || d.offers)) || data[0];
+      const offers = data && (data.offers || (data['@graph'] && data['@graph'].find((g) => g.offers)?.offers));
+      const offer = Array.isArray(offers) ? offers[0] : offers;
+      if (offer && offer.price) price = parseFloat(offer.price);
+      if (data && data.name && !name) name = String(data.name).slice(0, 200);
+    } catch (e) { /* not valid JSON-LD, ignore */ }
+  });
+
+  // Fallback: look for a ₼ price pattern in the raw text.
+  if (!price) {
+    const text = $('body').text();
+    const match = text.match(/(\d{1,6}(?:[.,]\d{1,2})?)\s*₼/);
+    if (match) price = parseFloat(match[1].replace(',', '.'));
+    const allMatches = [...text.matchAll(/(\d{1,6}(?:[.,]\d{1,2})?)\s*₼/g)].map((m) => parseFloat(m[1].replace(',', '.')));
+    if (allMatches.length >= 2) {
+      const sorted = [...allMatches].sort((a, b) => b - a);
+      comparePrice = sorted[0];
+      price = sorted[sorted.length - 1];
+      if (comparePrice === price) comparePrice = null;
+    }
+  }
+
+  return { name, description, price, comparePrice, image };
+}
+
+router.post('/mehsullar/idxal', async (req, res) => {
+  try {
+    const { url } = req.body;
+    if (!url) return res.status(400).json({ error: 'URL tələb olunur' });
+    const safeUrl = await assertSafeUrl(url);
+
+    const pageRes = await fetch(safeUrl.href, {
+      headers: { 'User-Agent': 'Mozilla/5.0 (compatible; SaasHomeImport/1.0)' },
+      redirect: 'follow',
+      signal: AbortSignal.timeout(15000),
+    });
+    if (!pageRes.ok) return res.status(400).json({ error: `Səhifə açılmadı (HTTP ${pageRes.status})` });
+    const html = await pageRes.text();
+
+    const data = extractProductData(html, safeUrl.href);
+    let savedImageUrl = null;
+
+    if (data.image) {
+      try {
+        const safeImgUrl = await assertSafeUrl(data.image);
+        const imgRes = await fetch(safeImgUrl.href, { signal: AbortSignal.timeout(15000) });
+        const contentType = imgRes.headers.get('content-type') || '';
+        if (imgRes.ok && /^image\//.test(contentType)) {
+          const buf = Buffer.from(await imgRes.arrayBuffer());
+          if (buf.length <= 8 * 1024 * 1024) {
+            const ext = contentType.includes('png') ? '.png' : contentType.includes('webp') ? '.webp' : contentType.includes('gif') ? '.gif' : '.jpg';
+            const filename = Date.now() + '-' + Math.round(Math.random() * 1e9) + ext;
+            fs.writeFileSync(path.join(UPLOAD_DIR, filename), buf);
+            savedImageUrl = '/uploads/' + filename;
+          }
+        }
+      } catch (e) { /* image import failed — not fatal, carry on without it */ }
+    }
+
+    res.json({
+      name: data.name,
+      description: data.description,
+      price: data.price,
+      compare_at_price: data.comparePrice,
+      image_url: savedImageUrl,
+    });
+  } catch (err) {
+    res.status(400).json({ error: err.message || 'İdxal alınmadı' });
+  }
 });
 
 // --- Categories ---

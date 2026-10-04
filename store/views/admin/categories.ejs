@@ -1,6 +1,7 @@
 <div class="admin-topbar"><h1>Kateqoriyalar</h1></div>
 <div class="admin-card" style="max-width:500px;">
   <form action="/admin/kateqoriyalar/yeni" method="post" style="display:flex;gap:10px;">
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
     <input type="text" name="name" placeholder="Yeni kateqoriya adı" required style="flex:1;padding:10px;border:1px solid var(--border);border-radius:6px;">
     <button class="btn" type="submit">Əlavə et</button>
   </form>
@@ -15,6 +16,7 @@
           <td><%= c.slug %></td>
           <td>
             <form action="/admin/kateqoriyalar/<%= c.id %>/sil" method="post" onsubmit="return confirm('Silinsin?');">
+              <input type="hidden" name="_csrf" value="<%= csrfToken %>">
               <button class="btn btn-sm btn-danger" type="submit">Sil</button>
             </form>
           </td>

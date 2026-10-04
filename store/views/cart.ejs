@@ -14,6 +14,7 @@
             <td><%= (i.price * i.qty).toFixed(2) %> ₼</td>
             <td>
               <form action="/sebet/sil/<%= i.id %>" method="post">
+                <input type="hidden" name="_csrf" value="<%= csrfToken %>">
                 <button class="btn btn-sm btn-danger" type="submit">Sil</button>
               </form>
             </td>
@@ -26,6 +27,7 @@
     <div class="form-card" style="margin-top:30px;">
       <h1>Sifarişi tamamla</h1>
       <form action="/sifaris" method="post">
+        <input type="hidden" name="_csrf" value="<%= csrfToken %>">
         <div class="form-group"><label>Ad, Soyad</label><input type="text" name="name" required></div>
         <div class="form-group"><label>Telefon</label><input type="text" name="phone" required placeholder="+994 __ ___ __ __"></div>
         <div class="form-group"><label>Çatdırılma ünvanı</label><textarea name="address" rows="3" required></textarea></div>

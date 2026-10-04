@@ -16,6 +16,7 @@
       </div>
       <form class="add-form" action="/sebet/elave/<%= p.id %>" method="post">
         <input type="hidden" name="qty" value="1">
+        <input type="hidden" name="_csrf" value="<%= csrfToken %>">
         <button class="btn btn-sm" type="submit" <%= p.stock <= 0 ? 'disabled' : '' %>>
           <%= p.stock > 0 ? 'Səbətə at' : 'Stokda yoxdur' %>
         </button>

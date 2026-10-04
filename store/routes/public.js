@@ -1,10 +1,23 @@
 const express = require('express');
 const bcrypt = require('bcryptjs');
+const rateLimit = require('express-rate-limit');
 const db = require('../db');
 const brand = require('../config/brand');
+const google = require('../config/google');
 const { requireCustomer } = require('../middleware/auth');
+const { isLocked, registerFailure, resetFailures, LOCK_MINUTES } = require('../middleware/loginGuard');
 
 const router = express.Router();
+
+// At most 10 login/register attempts per IP per 10 minutes, on top of the
+// per-account lockout below — slows down distributed brute-force attempts.
+const authLimiter = rateLimit({
+  windowMs: 10 * 60 * 1000,
+  max: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: 'Çox sayda cəhd edildi. Bir az sonra yenidən sınayın.',
+});
 
 router.use((req, res, next) => {
   res.locals.brand = brand;
@@ -118,16 +131,21 @@ router.post('/sifaris', (req, res) => {
 });
 
 // --- Customer auth ---
-router.get('/qeydiyyat', (req, res) => res.render('register', { title: 'Qeydiyyat', error: null }));
+router.get('/qeydiyyat', (req, res) =>
+  res.render('register', { title: 'Qeydiyyat', error: null, googleClientId: google.GOOGLE_CLIENT_ID })
+);
 
-router.post('/qeydiyyat', (req, res) => {
+router.post('/qeydiyyat', authLimiter, (req, res) => {
   const { full_name, email, phone, password } = req.body;
   if (!full_name || !email || !password) {
-    return res.render('register', { title: 'Qeydiyyat', error: 'Bütün vacib sahələri doldurun.' });
+    return res.render('register', { title: 'Qeydiyyat', error: 'Bütün vacib sahələri doldurun.', googleClientId: google.GOOGLE_CLIENT_ID });
+  }
+  if (password.length < 6) {
+    return res.render('register', { title: 'Qeydiyyat', error: 'Parol ən azı 6 simvol olmalıdır.', googleClientId: google.GOOGLE_CLIENT_ID });
   }
   const existing = db.prepare('SELECT id FROM customers WHERE email = ?').get(email);
   if (existing) {
-    return res.render('register', { title: 'Qeydiyyat', error: 'Bu email ilə artıq hesab var.' });
+    return res.render('register', { title: 'Qeydiyyat', error: 'Bu email ilə artıq hesab var.', googleClientId: google.GOOGLE_CLIENT_ID });
   }
   const hash = bcrypt.hashSync(password, 10);
   const result = db
@@ -137,17 +155,51 @@ router.post('/qeydiyyat', (req, res) => {
   res.redirect('/hesabim');
 });
 
-router.get('/giris', (req, res) => res.render('login', { title: 'Giriş', error: null, redirect: req.query.redirect || '/' }));
+router.get('/giris', (req, res) =>
+  res.render('login', { title: 'Giriş', error: null, redirect: req.query.redirect || '/', googleClientId: google.GOOGLE_CLIENT_ID })
+);
 router.get('/login', (req, res) => res.redirect('/giris' + (req.query.redirect ? `?redirect=${encodeURIComponent(req.query.redirect)}` : '')));
 
-router.post('/giris', (req, res) => {
+router.post('/giris', authLimiter, (req, res) => {
   const { email, password } = req.body;
+  const redirect = req.body.redirect || '/';
+  const fail = (msg) => res.render('login', { title: 'Giriş', error: msg, redirect, googleClientId: google.GOOGLE_CLIENT_ID });
+
   const customer = db.prepare('SELECT * FROM customers WHERE email = ?').get(email);
-  if (!customer || !bcrypt.compareSync(password, customer.password_hash)) {
-    return res.render('login', { title: 'Giriş', error: 'Email və ya parol yanlışdır.', redirect: req.body.redirect || '/' });
+  if (!customer) return fail('Email və ya parol yanlışdır.');
+  if (isLocked(customer)) return fail(`Çox sayda yanlış cəhd. ${LOCK_MINUTES} dəqiqə sonra yenidən sınayın.`);
+  if (!customer.password_hash) return fail('Bu hesab Google ilə qeydiyyatdan keçib. "Google ilə daxil ol" düyməsini istifadə edin.');
+
+  if (!bcrypt.compareSync(password, customer.password_hash)) {
+    registerFailure(db, 'customers', customer.id, customer.failed_login_count);
+    return fail('Email və ya parol yanlışdır.');
   }
+  resetFailures(db, 'customers', customer.id);
   req.session.customerId = customer.id;
-  res.redirect(req.body.redirect || '/hesabim');
+  res.redirect(redirect);
+});
+
+// --- Google ilə giriş/qeydiyyat ---
+// The front-end Google button posts an ID token here (Google Identity
+// Services); we verify it server-side and never trust the client's claim.
+router.post('/auth/google', authLimiter, async (req, res) => {
+  const redirect = req.body.redirect || '/';
+  try {
+    const { email, name, googleId } = await google.verifyGoogleToken(req.body.credential);
+    let customer = db.prepare('SELECT * FROM customers WHERE google_id = ? OR email = ?').get(googleId, email);
+    if (!customer) {
+      const result = db
+        .prepare('INSERT INTO customers (full_name, email, google_id) VALUES (?, ?, ?)')
+        .run(name, email, googleId);
+      customer = { id: result.lastInsertRowid };
+    } else if (!customer.google_id) {
+      db.prepare('UPDATE customers SET google_id = ? WHERE id = ?').run(googleId, customer.id);
+    }
+    req.session.customerId = customer.id;
+    res.redirect(redirect);
+  } catch (err) {
+    res.render('login', { title: 'Giriş', error: 'Google ilə giriş alınmadı: ' + err.message, redirect, googleClientId: google.GOOGLE_CLIENT_ID });
+  }
 });
 
 router.post('/cixis', (req, res) => {

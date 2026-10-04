@@ -4,6 +4,8 @@ CREATE TABLE IF NOT EXISTS admins (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   username TEXT UNIQUE NOT NULL,
   password_hash TEXT NOT NULL,
+  failed_login_count INTEGER DEFAULT 0,
+  locked_until DATETIME,
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -12,7 +14,10 @@ CREATE TABLE IF NOT EXISTS customers (
   full_name TEXT NOT NULL,
   email TEXT UNIQUE NOT NULL,
   phone TEXT,
-  password_hash TEXT NOT NULL,
+  password_hash TEXT,
+  google_id TEXT UNIQUE,
+  failed_login_count INTEGER DEFAULT 0,
+  locked_until DATETIME,
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
